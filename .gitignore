@@ -28,5 +28,12 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+
+# Binaries
+/databricks-exporter
+
+# Test & development scripts
+test_tables.sh
+lefthook.yml
