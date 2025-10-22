@@ -33,3 +33,7 @@ go.work.sum
 
 # Binaries
 /databricks-exporter
+
+# Test & development scripts
+test_tables.sh
+lefthook.yml
