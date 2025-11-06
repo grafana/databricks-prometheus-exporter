@@ -23,7 +23,7 @@ require (
 	github.com/dnephin/pflag v1.0.7 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
-	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/goccy/go-json v0.9.11 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
