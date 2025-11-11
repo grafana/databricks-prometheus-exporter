@@ -17,6 +17,8 @@ package collector
 import (
 	"database/sql"
 	"fmt"
+	"sync"
+	"time"
 
 	dbsql "github.com/databricks/databricks-sql-go"
 	"github.com/databricks/databricks-sql-go/auth/oauth/m2m"
@@ -28,11 +30,23 @@ import (
 const (
 	namespace = "databricks"
 
+	// Common labels
 	labelAccountID   = "account_id"
 	labelWorkspaceID = "workspace_id"
 	labelSKUName     = "sku_name"
 	labelCloud       = "cloud"
 	labelUsageUnit   = "usage_unit"
+	labelStatus      = "status"
+	labelStage       = "stage"
+	labelQuantile    = "quantile"
+
+	// Resource identification labels
+	labelJobID        = "job_id"
+	labelJobName      = "job_name"
+	labelPipelineID   = "pipeline_id"
+	labelPipelineName = "pipeline_name"
+	labelTaskKey      = "task_key"
+	labelWarehouseID  = "warehouse_id"
 )
 
 // openDatabricksDatabase opens a connection to a Databricks SQL Warehouse using OAuth2 M2M authentication.
@@ -47,57 +61,55 @@ func openDatabricksDatabase(config *Config) (*sql.DB, error) {
 	// Create connector with OAuth authentication
 	connector, err := dbsql.NewConnector(
 		dbsql.WithServerHostname(config.ServerHostname),
-		dbsql.WithHTTPPath(config.HTTPPath),
+		dbsql.WithHTTPPath(config.WarehouseHTTPPath),
 		dbsql.WithPort(443),
 		dbsql.WithAuthenticator(authenticator),
-		dbsql.WithInitialNamespace(config.Catalog, config.Schema),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connector: %w", err)
 	}
 
-	return sql.OpenDB(connector), nil
+	db := sql.OpenDB(connector)
+
+	// Configure connection pool for better resilience
+	db.SetMaxOpenConns(10)                 // Limit concurrent connections to avoid overwhelming Databricks
+	db.SetMaxIdleConns(5)                  // Keep some connections warm
+	db.SetConnMaxLifetime(5 * time.Minute) // Recycle connections every 5 minutes
+	db.SetConnMaxIdleTime(1 * time.Minute) // Close idle connections after 1 minute
+
+	return db, nil
 }
 
-// Collector is a prometheus.Collector that retrieves billing and usage metrics for a Databricks account.
+// Collector is a prometheus.Collector that retrieves all metrics for a Databricks account.
+// It orchestrates multiple specialized collectors for different metric categories.
 type Collector struct {
 	config *Config
 	logger log.Logger
 	// For mocking
 	openDatabase func(*Config) (*sql.DB, error)
 
-	usageQuantity *prometheus.Desc
-	up            *prometheus.Desc
+	// Metric descriptors
+	metrics *MetricDescriptors
 }
 
 // NewCollector creates a new collector from a given config.
 // The config is assumed to be valid.
 func NewCollector(logger log.Logger, c *Config) *Collector {
+	metrics := NewMetricDescriptors()
+
 	return &Collector{
 		config:       c,
 		logger:       logger,
 		openDatabase: openDatabricksDatabase,
-		usageQuantity: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "billing", "usage_quantity"),
-			"Usage quantity information from system.billing.usage table, aggregated over the last 7 days.",
-			[]string{labelAccountID, labelWorkspaceID, labelSKUName, labelCloud, labelUsageUnit},
-			nil,
-		),
-		up: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "up"),
-			"Metric indicating the status of the exporter collection. 1 indicates that the connection to Databricks was successful, and all available metrics were collected. "+
-				"0 indicates that the exporter failed to collect 1 or more metrics, due to an inability to connect to Databricks.",
-			nil,
-			nil,
-		),
+		metrics:      metrics,
 	}
 }
 
 // Describe returns all metric descriptions of the collector by emitting them down the provided channel.
 // It implements prometheus.Collector.
 func (c *Collector) Describe(descs chan<- *prometheus.Desc) {
-	descs <- c.usageQuantity
-	descs <- c.up
+	// Describe all metrics from the MetricDescriptors
+	c.metrics.Describe(descs)
 }
 
 // Collect collects all metrics for this collector, and emits them through the provided channel.
@@ -105,57 +117,63 @@ func (c *Collector) Describe(descs chan<- *prometheus.Desc) {
 func (c *Collector) Collect(metrics chan<- prometheus.Metric) {
 	level.Debug(c.logger).Log("msg", "Collecting metrics.")
 
-	var up float64 = 1
 	// Open a new connection to the database each time; This makes the connection more robust to transient failures
 	db, err := c.openDatabase(c.config)
 	if err != nil {
 		level.Error(c.logger).Log("msg", "Failed to connect to Databricks.", "err", err)
 		// Emit up metric here, to indicate connection failed.
-		metrics <- prometheus.MustNewConstMetric(c.up, prometheus.GaugeValue, 0)
+		metrics <- prometheus.MustNewConstMetric(c.metrics.Up, prometheus.GaugeValue, 0)
 		return
 	}
 	defer db.Close()
 
-	if err := c.collectBillingMetrics(db, metrics); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect billing metrics.", "err", err)
-		up = 0
-	}
+	// Emit up=1 immediately after successful connection
+	// This ensures the metric is always emitted even if subsequent collection hangs/times out
+	metrics <- prometheus.MustNewConstMetric(c.metrics.Up, prometheus.GaugeValue, 1)
+	level.Debug(c.logger).Log("msg", "Database connection successful, emitted up=1")
 
-	metrics <- prometheus.MustNewConstMetric(c.up, prometheus.GaugeValue, up)
-	level.Debug(c.logger).Log("msg", "Finished collecting metrics.")
-}
+	// Initialize specialized collectors with the database connection
+	billingCollector := NewBillingCollector(c.logger, db, c.metrics)
+	jobsCollector := NewJobsCollector(c.logger, db, c.metrics)
+	pipelinesCollector := NewPipelinesCollector(c.logger, db, c.metrics)
+	sqlWarehouseCollector := NewSQLWarehouseCollector(c.logger, db, c.metrics)
 
-func (c *Collector) collectBillingMetrics(db *sql.DB, metrics chan<- prometheus.Metric) error {
-	level.Debug(c.logger).Log("msg", "Collecting billing metrics.")
-	rows, err := db.Query(billingMetricQuery)
-	level.Debug(c.logger).Log("msg", "Done querying billing metrics.")
-	if err != nil {
-		return fmt.Errorf("failed to query metrics: %w", err)
-	}
-	defer rows.Close()
+	start := time.Now()
 
-	for rows.Next() {
-		var accountID, workspaceID, skuName, cloud, usageUnit sql.NullString
-		var usageQuantity sql.NullFloat64
+	// Create a WaitGroup to run collectors in parallel
+	// This significantly reduces total collection time
+	var wg sync.WaitGroup
 
-		if err := rows.Scan(&accountID, &workspaceID, &skuName, &cloud, &usageUnit, &usageQuantity); err != nil {
-			return fmt.Errorf("failed to scan row: %w", err)
-		}
+	// Collect billing metrics in parallel
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		billingCollector.Collect(metrics)
+	}()
 
-		if usageQuantity.Valid {
-			metrics <- prometheus.MustNewConstMetric(
-				c.usageQuantity,
-				prometheus.GaugeValue,
-				usageQuantity.Float64,
-				accountID.String,
-				workspaceID.String,
-				skuName.String,
-				cloud.String,
-				usageUnit.String,
-			)
-		}
-	}
+	// Collect jobs metrics in parallel
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		jobsCollector.Collect(metrics)
+	}()
 
-	level.Debug(c.logger).Log("msg", "Finished collecting billing metrics.")
-	return rows.Err()
+	// Collect pipelines metrics in parallel
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		pipelinesCollector.Collect(metrics)
+	}()
+
+	// Collect SQL warehouse metrics in parallel
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sqlWarehouseCollector.Collect(metrics)
+	}()
+
+	// Wait for all collectors to finish
+	wg.Wait()
+
+	level.Debug(c.logger).Log("msg", "Finished collecting metrics", "duration_seconds", time.Since(start).Seconds())
 }

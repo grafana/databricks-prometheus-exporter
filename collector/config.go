@@ -19,21 +19,17 @@ import (
 )
 
 type Config struct {
-	ServerHostname string
-	HTTPPath       string
-	ClientID       string
-	ClientSecret   string
-	Catalog        string
-	Schema         string
+	ServerHostname    string
+	WarehouseHTTPPath string
+	ClientID          string
+	ClientSecret      string
 }
 
 var (
-	errNoServerHostname = errors.New("server_hostname must be specified")
-	errNoHTTPPath       = errors.New("http_path must be specified")
-	errNoClientID       = errors.New("client_id must be specified")
-	errNoClientSecret   = errors.New("client_secret must be specified")
-	errNoCatalog        = errors.New("catalog must be specified")
-	errNoSchema         = errors.New("schema must be specified")
+	errNoServerHostname    = errors.New("server_hostname must be specified")
+	errNoWarehouseHTTPPath = errors.New("warehouse_http_path must be specified")
+	errNoClientID          = errors.New("client_id must be specified")
+	errNoClientSecret      = errors.New("client_secret must be specified")
 )
 
 func (c Config) Validate() error {
@@ -41,8 +37,8 @@ func (c Config) Validate() error {
 		return errNoServerHostname
 	}
 
-	if c.HTTPPath == "" {
-		return errNoHTTPPath
+	if c.WarehouseHTTPPath == "" {
+		return errNoWarehouseHTTPPath
 	}
 
 	if c.ClientID == "" {
@@ -51,14 +47,6 @@ func (c Config) Validate() error {
 
 	if c.ClientSecret == "" {
 		return errNoClientSecret
-	}
-
-	if c.Catalog == "" {
-		return errNoCatalog
-	}
-
-	if c.Schema == "" {
-		return errNoSchema
 	}
 
 	return nil

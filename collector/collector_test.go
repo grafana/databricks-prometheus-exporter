@@ -16,7 +16,6 @@ package collector
 
 import (
 	"database/sql"
-	"database/sql/driver"
 	"errors"
 	"testing"
 
@@ -24,39 +23,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// mockDB is a mock database implementation for testing
-type mockRows struct {
-	data    [][]driver.Value
-	columns []string
-	pos     int
-}
-
-func (m *mockRows) Columns() []string {
-	return m.columns
-}
-
-func (m *mockRows) Close() error {
-	return nil
-}
-
-func (m *mockRows) Next(dest []driver.Value) error {
-	if m.pos >= len(m.data) {
-		return sql.ErrNoRows
-	}
-	copy(dest, m.data[m.pos])
-	m.pos++
-	return nil
-}
-
 func TestNewCollector(t *testing.T) {
 	logger := log.NewNopLogger()
 	config := &Config{
-		ServerHostname: "test.databricks.com",
-		HTTPPath:       "/sql/1.0/warehouses/test",
-		ClientID:       "test-id",
-		ClientSecret:   "test-secret",
-		Catalog:        "system",
-		Schema:         "billing",
+		ServerHostname:    "test.databricks.com",
+		WarehouseHTTPPath: "/sql/1.0/warehouses/test",
+		ClientID:          "test-id",
+		ClientSecret:      "test-secret",
 	}
 
 	collector := NewCollector(logger, config)
@@ -77,24 +50,18 @@ func TestNewCollector(t *testing.T) {
 		t.Error("collector openDatabase function should not be nil")
 	}
 
-	if collector.accountPrices == nil {
-		t.Error("collector accountPrices metric descriptor should not be nil")
-	}
-
-	if collector.up == nil {
-		t.Error("collector up metric descriptor should not be nil")
+	if collector.metrics == nil {
+		t.Error("collector metrics should not be nil")
 	}
 }
 
 func TestCollectorDescribe(t *testing.T) {
 	logger := log.NewNopLogger()
 	config := &Config{
-		ServerHostname: "test.databricks.com",
-		HTTPPath:       "/sql/1.0/warehouses/test",
-		ClientID:       "test-id",
-		ClientSecret:   "test-secret",
-		Catalog:        "system",
-		Schema:         "billing",
+		ServerHostname:    "test.databricks.com",
+		WarehouseHTTPPath: "/sql/1.0/warehouses/test",
+		ClientID:          "test-id",
+		ClientSecret:      "test-secret",
 	}
 
 	collector := NewCollector(logger, config)
@@ -110,20 +77,20 @@ func TestCollectorDescribe(t *testing.T) {
 		descriptions = append(descriptions, desc)
 	}
 
-	if len(descriptions) != 2 {
-		t.Errorf("expected 2 metric descriptions, got %d", len(descriptions))
+	// Should have all 20 metrics (18 main + 2 future billing metrics + 1 up metric)
+	expectedCount := 20
+	if len(descriptions) != expectedCount {
+		t.Errorf("expected %d metric descriptions, got %d", expectedCount, len(descriptions))
 	}
 }
 
 func TestCollectorCollect_DatabaseConnectionFailure(t *testing.T) {
 	logger := log.NewNopLogger()
 	config := &Config{
-		ServerHostname: "test.databricks.com",
-		HTTPPath:       "/sql/1.0/warehouses/test",
-		ClientID:       "test-id",
-		ClientSecret:   "test-secret",
-		Catalog:        "system",
-		Schema:         "billing",
+		ServerHostname:    "test.databricks.com",
+		WarehouseHTTPPath: "/sql/1.0/warehouses/test",
+		ClientID:          "test-id",
+		ClientSecret:      "test-secret",
 	}
 
 	collector := NewCollector(logger, config)
@@ -167,12 +134,10 @@ func TestCollectorCollect_DatabaseConnectionFailure(t *testing.T) {
 func TestCollectorMetricNames(t *testing.T) {
 	logger := log.NewNopLogger()
 	config := &Config{
-		ServerHostname: "test.databricks.com",
-		HTTPPath:       "/sql/1.0/warehouses/test",
-		ClientID:       "test-id",
-		ClientSecret:   "test-secret",
-		Catalog:        "system",
-		Schema:         "billing",
+		ServerHostname:    "test.databricks.com",
+		WarehouseHTTPPath: "/sql/1.0/warehouses/test",
+		ClientID:          "test-id",
+		ClientSecret:      "test-secret",
 	}
 
 	collector := NewCollector(logger, config)
@@ -213,9 +178,9 @@ func TestCollectorMetricNames(t *testing.T) {
 func TestCollectorLabels(t *testing.T) {
 	expectedLabels := []string{
 		labelAccountID,
+		labelWorkspaceID,
 		labelSKUName,
 		labelCloud,
-		labelCurrencyCode,
 		labelUsageUnit,
 	}
 
@@ -230,14 +195,14 @@ func TestCollectorLabels(t *testing.T) {
 	if labelAccountID != "account_id" {
 		t.Errorf("expected labelAccountID to be 'account_id', got '%s'", labelAccountID)
 	}
+	if labelWorkspaceID != "workspace_id" {
+		t.Errorf("expected labelWorkspaceID to be 'workspace_id', got '%s'", labelWorkspaceID)
+	}
 	if labelSKUName != "sku_name" {
 		t.Errorf("expected labelSKUName to be 'sku_name', got '%s'", labelSKUName)
 	}
 	if labelCloud != "cloud" {
 		t.Errorf("expected labelCloud to be 'cloud', got '%s'", labelCloud)
-	}
-	if labelCurrencyCode != "currency_code" {
-		t.Errorf("expected labelCurrencyCode to be 'currency_code', got '%s'", labelCurrencyCode)
 	}
 	if labelUsageUnit != "usage_unit" {
 		t.Errorf("expected labelUsageUnit to be 'usage_unit', got '%s'", labelUsageUnit)
@@ -255,12 +220,10 @@ func TestOpenDatabricksDatabase_ValidatesConnection(t *testing.T) {
 	// We can't test actual connection without valid credentials,
 	// but we can verify the function signature and basic behavior
 	config := &Config{
-		ServerHostname: "test.cloud.databricks.com",
-		HTTPPath:       "/sql/1.0/warehouses/test123",
-		ClientID:       "test-client-id",
-		ClientSecret:   "test-secret",
-		Catalog:        "system",
-		Schema:         "billing",
+		ServerHostname:    "test.cloud.databricks.com",
+		WarehouseHTTPPath: "/sql/1.0/warehouses/test123",
+		ClientID:          "test-client-id",
+		ClientSecret:      "test-secret",
 	}
 
 	// This will attempt to create a connector but should return without error

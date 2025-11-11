@@ -1,0 +1,429 @@
+// Copyright 2025 Grafana Labs
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package collector
+
+import (
+	"database/sql"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+const (
+	// tableCheckInterval defines how often to retry checking for the pipeline_update_timeline table.
+	// If the table is unavailable, we'll check again after this many scrapes.
+	tableCheckInterval = 10
+)
+
+// PipelinesCollector collects pipeline-related metrics from Databricks.
+type PipelinesCollector struct {
+	logger log.Logger
+	db     *sql.DB
+
+	// Metric descriptors
+	metrics *MetricDescriptors
+
+	// Table availability tracking
+	mu                   sync.RWMutex
+	tableAvailable       *bool     // nil = unknown, true = available, false = unavailable
+	tableLastChecked     time.Time // when we last checked
+	tableCheckCounter    int       // number of scrapes since last check
+	tableUnavailableOnce sync.Once // ensures we only log unavailability once
+}
+
+// NewPipelinesCollector creates a new PipelinesCollector.
+func NewPipelinesCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors) *PipelinesCollector {
+	return &PipelinesCollector{
+		logger:  logger,
+		db:      db,
+		metrics: metrics,
+	}
+}
+
+// Describe sends the descriptors of each metric over the provided channel.
+func (c *PipelinesCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- c.metrics.PipelineRunsTotal
+	ch <- c.metrics.PipelineRunStatusTotal
+	ch <- c.metrics.PipelineRunDurationSeconds
+	ch <- c.metrics.PipelineRetryEventsTotal
+	ch <- c.metrics.PipelineFreshnessLagSeconds
+}
+
+// Collect fetches metrics from Databricks and sends them to Prometheus.
+func (c *PipelinesCollector) Collect(ch chan<- prometheus.Metric) {
+	start := time.Now()
+	level.Debug(c.logger).Log("msg", "Collecting pipeline metrics")
+
+	// Check if we should verify table availability
+	if c.shouldCheckTable() {
+		c.checkTableAvailability()
+	}
+
+	// Skip collection if table is known to be unavailable
+	if !c.isTableAvailable() {
+		level.Debug(c.logger).Log("msg", "Skipping pipeline metrics collection - table unavailable")
+		return
+	}
+
+	// Collect each metric, but continue on errors
+	if err := c.collectPipelineRuns(ch); err != nil {
+		c.handleCollectionError("pipeline runs", err)
+	}
+
+	if err := c.collectPipelineRunStatus(ch); err != nil {
+		c.handleCollectionError("pipeline run status", err)
+	}
+
+	if err := c.collectPipelineRunDuration(ch); err != nil {
+		c.handleCollectionError("pipeline run duration", err)
+	}
+
+	if err := c.collectPipelineRetryEvents(ch); err != nil {
+		c.handleCollectionError("pipeline retry events", err)
+	}
+
+	if err := c.collectPipelineFreshnessLag(ch); err != nil {
+		c.handleCollectionError("pipeline freshness lag", err)
+	}
+
+	level.Debug(c.logger).Log("msg", "Finished collecting pipeline metrics", "duration_seconds", time.Since(start).Seconds())
+}
+
+// shouldCheckTable determines if we should check table availability.
+// Returns true if:
+// - We've never checked before (tableAvailable is nil)
+// - Enough scrapes have passed since last check
+func (c *PipelinesCollector) shouldCheckTable() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	// Always check if we haven't checked yet
+	if c.tableAvailable == nil {
+		return true
+	}
+
+	// If table was unavailable, check periodically
+	if !*c.tableAvailable && c.tableCheckCounter >= tableCheckInterval {
+		return true
+	}
+
+	return false
+}
+
+// isTableAvailable returns whether the table is available.
+// Increments check counter for periodic retries.
+func (c *PipelinesCollector) isTableAvailable() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.tableCheckCounter++
+
+	// If we don't know yet, assume unavailable
+	if c.tableAvailable == nil {
+		return false
+	}
+
+	return *c.tableAvailable
+}
+
+// checkTableAvailability checks if the pipeline_update_timeline table exists.
+func (c *PipelinesCollector) checkTableAvailability() {
+	c.mu.Lock()
+	c.tableLastChecked = time.Now()
+	c.tableCheckCounter = 0
+	c.mu.Unlock()
+
+	// Try a simple query to check if the table exists
+	query := "SELECT 1 FROM system.lakeflow.pipeline_update_timeline LIMIT 1"
+	_, err := c.db.Query(query)
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if err != nil {
+		// Check if it's a "table not found" error
+		if strings.Contains(strings.ToLower(err.Error()), "table_or_view_not_found") ||
+			strings.Contains(strings.ToLower(err.Error()), "cannot be found") {
+
+			available := false
+			wasAvailable := c.tableAvailable != nil && *c.tableAvailable
+
+			c.tableAvailable = &available
+
+			// Log once when we first discover the table is unavailable
+			if c.tableAvailable != nil && !wasAvailable {
+				c.tableUnavailableOnce.Do(func() {
+					level.Warn(c.logger).Log(
+						"msg", "Pipeline metrics table not available - pipeline metrics will not be collected",
+						"table", "system.lakeflow.pipeline_update_timeline",
+						"note", "This is expected in some Databricks environments. All other metrics will continue to work normally.",
+						"suggestion", "Contact Databricks Support to enable this table, or see documentation for more information.",
+					)
+				})
+			}
+
+			level.Debug(c.logger).Log(
+				"msg", "Verified table is unavailable",
+				"table", "system.lakeflow.pipeline_update_timeline",
+				"will_retry_in_scrapes", tableCheckInterval,
+			)
+		} else {
+			// Some other error - log it and assume unavailable for now
+			level.Debug(c.logger).Log(
+				"msg", "Error checking table availability",
+				"table", "system.lakeflow.pipeline_update_timeline",
+				"err", err,
+			)
+			available := false
+			c.tableAvailable = &available
+		}
+	} else {
+		available := true
+		wasUnavailable := c.tableAvailable != nil && !*c.tableAvailable
+
+		c.tableAvailable = &available
+
+		// Log when table becomes available (was previously unavailable)
+		if wasUnavailable {
+			level.Info(c.logger).Log(
+				"msg", "Pipeline metrics table is now available - resuming pipeline metrics collection",
+				"table", "system.lakeflow.pipeline_update_timeline",
+			)
+		} else {
+			level.Debug(c.logger).Log(
+				"msg", "Verified table is available",
+				"table", "system.lakeflow.pipeline_update_timeline",
+			)
+		}
+	}
+}
+
+// handleCollectionError handles errors during metric collection.
+// If it's a table-not-found error, marks the table as unavailable.
+// Otherwise, logs the error.
+func (c *PipelinesCollector) handleCollectionError(metricName string, err error) {
+	errStr := strings.ToLower(err.Error())
+
+	// Check if this is a table-not-found error
+	if strings.Contains(errStr, "table_or_view_not_found") ||
+		strings.Contains(errStr, "cannot be found") {
+
+		c.mu.Lock()
+		available := false
+		c.tableAvailable = &available
+		c.mu.Unlock()
+
+		level.Debug(c.logger).Log(
+			"msg", "Table became unavailable during collection",
+			"metric", metricName,
+		)
+	} else {
+		// Some other error - log it
+		level.Error(c.logger).Log(
+			"msg", "Failed to collect pipeline metric",
+			"metric", metricName,
+			"err", err,
+		)
+	}
+}
+
+// collectPipelineRuns collects the total number of pipeline runs per pipeline.
+func (c *PipelinesCollector) collectPipelineRuns(ch chan<- prometheus.Metric) error {
+	rows, err := c.db.Query(pipelineRunsQuery)
+	if err != nil {
+		return fmt.Errorf("failed to execute pipeline runs query: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var workspaceID, pipelineID, pipelineName sql.NullString
+		var count sql.NullFloat64
+
+		if err := rows.Scan(&workspaceID, &pipelineID, &pipelineName, &count); err != nil {
+			return fmt.Errorf("failed to scan pipeline runs row: %w", err)
+		}
+
+		if count.Valid {
+			ch <- prometheus.MustNewConstMetric(
+				c.metrics.PipelineRunsTotal,
+				prometheus.CounterValue,
+				count.Float64,
+				workspaceID.String,
+				pipelineID.String,
+				pipelineName.String,
+			)
+		}
+	}
+
+	return rows.Err()
+}
+
+// collectPipelineRunStatus collects pipeline run counts by status per pipeline.
+func (c *PipelinesCollector) collectPipelineRunStatus(ch chan<- prometheus.Metric) error {
+	rows, err := c.db.Query(pipelineRunStatusQuery)
+	if err != nil {
+		return fmt.Errorf("failed to execute pipeline run status query: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var workspaceID, pipelineID, pipelineName, status sql.NullString
+		var count sql.NullFloat64
+
+		if err := rows.Scan(&workspaceID, &pipelineID, &pipelineName, &status, &count); err != nil {
+			return fmt.Errorf("failed to scan pipeline run status row: %w", err)
+		}
+
+		if count.Valid {
+			ch <- prometheus.MustNewConstMetric(
+				c.metrics.PipelineRunStatusTotal,
+				prometheus.CounterValue,
+				count.Float64,
+				workspaceID.String,
+				pipelineID.String,
+				pipelineName.String,
+				status.String,
+			)
+		}
+	}
+
+	return rows.Err()
+}
+
+// collectPipelineRunDuration collects pipeline run duration quantiles per pipeline.
+func (c *PipelinesCollector) collectPipelineRunDuration(ch chan<- prometheus.Metric) error {
+	rows, err := c.db.Query(pipelineRunDurationQuery)
+	if err != nil {
+		return fmt.Errorf("failed to execute pipeline run duration query: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var workspaceID, pipelineID, pipelineName sql.NullString
+		var p50, p95, p99 sql.NullFloat64
+
+		if err := rows.Scan(&workspaceID, &pipelineID, &pipelineName, &p50, &p95, &p99); err != nil {
+			return fmt.Errorf("failed to scan pipeline run duration row: %w", err)
+		}
+
+		// Emit p50
+		if p50.Valid {
+			ch <- prometheus.MustNewConstMetric(
+				c.metrics.PipelineRunDurationSeconds,
+				prometheus.GaugeValue,
+				p50.Float64,
+				workspaceID.String,
+				pipelineID.String,
+				pipelineName.String,
+				"0.50",
+			)
+		}
+
+		// Emit p95
+		if p95.Valid {
+			ch <- prometheus.MustNewConstMetric(
+				c.metrics.PipelineRunDurationSeconds,
+				prometheus.GaugeValue,
+				p95.Float64,
+				workspaceID.String,
+				pipelineID.String,
+				pipelineName.String,
+				"0.95",
+			)
+		}
+
+		// Emit p99
+		if p99.Valid {
+			ch <- prometheus.MustNewConstMetric(
+				c.metrics.PipelineRunDurationSeconds,
+				prometheus.GaugeValue,
+				p99.Float64,
+				workspaceID.String,
+				pipelineID.String,
+				pipelineName.String,
+				"0.99",
+			)
+		}
+	}
+
+	return rows.Err()
+}
+
+// collectPipelineRetryEvents collects the total number of pipeline retry events per pipeline.
+func (c *PipelinesCollector) collectPipelineRetryEvents(ch chan<- prometheus.Metric) error {
+	rows, err := c.db.Query(pipelineRetryEventsQuery)
+	if err != nil {
+		return fmt.Errorf("failed to execute pipeline retry events query: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var workspaceID, pipelineID, pipelineName sql.NullString
+		var retries sql.NullFloat64
+
+		if err := rows.Scan(&workspaceID, &pipelineID, &pipelineName, &retries); err != nil {
+			return fmt.Errorf("failed to scan pipeline retry events row: %w", err)
+		}
+
+		if retries.Valid {
+			ch <- prometheus.MustNewConstMetric(
+				c.metrics.PipelineRetryEventsTotal,
+				prometheus.CounterValue,
+				retries.Float64,
+				workspaceID.String,
+				pipelineID.String,
+				pipelineName.String,
+			)
+		}
+	}
+
+	return rows.Err()
+}
+
+// collectPipelineFreshnessLag collects pipeline data freshness lag per pipeline.
+func (c *PipelinesCollector) collectPipelineFreshnessLag(ch chan<- prometheus.Metric) error {
+	rows, err := c.db.Query(pipelineFreshnessLagQuery)
+	if err != nil {
+		return fmt.Errorf("failed to execute pipeline freshness lag query: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var workspaceID, pipelineID, pipelineName sql.NullString
+		var lagSeconds sql.NullFloat64
+
+		if err := rows.Scan(&workspaceID, &pipelineID, &pipelineName, &lagSeconds); err != nil {
+			return fmt.Errorf("failed to scan pipeline freshness lag row: %w", err)
+		}
+
+		if lagSeconds.Valid {
+			ch <- prometheus.MustNewConstMetric(
+				c.metrics.PipelineFreshnessLagSeconds,
+				prometheus.GaugeValue,
+				lagSeconds.Float64,
+				workspaceID.String,
+				pipelineID.String,
+				pipelineName.String,
+			)
+		}
+	}
+
+	return rows.Err()
+}

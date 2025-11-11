@@ -34,14 +34,12 @@ import (
 )
 
 var (
-	webConfig      = webflag.AddFlags(kingpin.CommandLine, ":9976")
-	metricPath     = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").Envar("DATABRICKS_EXPORTER_WEB_TELEMETRY_PATH").String()
-	serverHostname = kingpin.Flag("server-hostname", "The Databricks workspace hostname (e.g., dbc-abc123-def456.cloud.databricks.com).").Envar("DATABRICKS_EXPORTER_SERVER_HOSTNAME").Required().String()
-	httpPath       = kingpin.Flag("http-path", "The HTTP path of the SQL warehouse.").Envar("DATABRICKS_EXPORTER_HTTP_PATH").Required().String()
-	clientID       = kingpin.Flag("client-id", "The OAuth2 Client ID (Application ID) for Service Principal authentication.").Envar("DATABRICKS_EXPORTER_CLIENT_ID").Required().String()
-	clientSecret   = kingpin.Flag("client-secret", "The OAuth2 Client Secret for Service Principal authentication.").Envar("DATABRICKS_EXPORTER_CLIENT_SECRET").Required().String()
-	catalog        = kingpin.Flag("catalog", "The catalog to use when querying.").Default("system").Envar("DATABRICKS_EXPORTER_CATALOG").String()
-	schema         = kingpin.Flag("schema", "The schema to use when querying.").Default("billing").Envar("DATABRICKS_EXPORTER_SCHEMA").String()
+	webConfig         = webflag.AddFlags(kingpin.CommandLine, ":9976")
+	metricPath        = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").Envar("DATABRICKS_EXPORTER_WEB_TELEMETRY_PATH").String()
+	serverHostname    = kingpin.Flag("server-hostname", "The Databricks workspace hostname (e.g., dbc-abc123-def456.cloud.databricks.com).").Envar("DATABRICKS_EXPORTER_SERVER_HOSTNAME").Required().String()
+	warehouseHTTPPath = kingpin.Flag("warehouse-http-path", "The HTTP path of the SQL Warehouse (e.g., /sql/1.0/warehouses/abc123def456).").Envar("DATABRICKS_EXPORTER_WAREHOUSE_HTTP_PATH").Required().String()
+	clientID          = kingpin.Flag("client-id", "The OAuth2 Client ID (Application ID) for Service Principal authentication.").Envar("DATABRICKS_EXPORTER_CLIENT_ID").Required().String()
+	clientSecret      = kingpin.Flag("client-secret", "The OAuth2 Client Secret for Service Principal authentication.").Envar("DATABRICKS_EXPORTER_CLIENT_SECRET").Required().String()
 )
 
 const (
@@ -69,12 +67,10 @@ func main() {
 
 	// Construct the collector, using the flags for configuration
 	c := &collector.Config{
-		ServerHostname: *serverHostname,
-		HTTPPath:       *httpPath,
-		ClientID:       *clientID,
-		ClientSecret:   *clientSecret,
-		Catalog:        *catalog,
-		Schema:         *schema,
+		ServerHostname:    *serverHostname,
+		WarehouseHTTPPath: *warehouseHTTPPath,
+		ClientID:          *clientID,
+		ClientSecret:      *clientSecret,
 	}
 
 	if err := c.Validate(); err != nil {
