@@ -30,6 +30,7 @@ go.work.sum
 # Editor/IDE
 .idea/
 .vscode/
+.DS_Store
 
 # Binaries
 /databricks-exporter
@@ -37,3 +38,13 @@ go.work.sum
 # Test & development scripts
 test_tables.sh
 lefthook.yml
+
+# build artifacts from `promu crossbuild`
+.build
+
+# build artifacts for mixin
+/mixin/*_out
+mixin/prometheus_alerts.yaml
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
