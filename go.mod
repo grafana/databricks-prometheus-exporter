@@ -53,16 +53,16 @@ require (
 	github.com/rs/zerolog v1.28.0 // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
-	golang.org/x/crypto v0.43.0 // indirect
-	golang.org/x/mod v0.28.0 // indirect
-	golang.org/x/net v0.45.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
+	golang.org/x/mod v0.29.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.37.0 // indirect
-	golang.org/x/telemetry v0.0.0-20250908211612-aef8a434d053 // indirect
-	golang.org/x/term v0.36.0 // indirect
-	golang.org/x/text v0.30.0 // indirect
-	golang.org/x/tools v0.37.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/telemetry v0.0.0-20251008203120-078029d740a8 // indirect
+	golang.org/x/term v0.37.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/tools v0.38.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
