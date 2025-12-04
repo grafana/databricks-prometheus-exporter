@@ -20,8 +20,8 @@ github.com/coreos/go-oidc/v3 v3.5.0/go.mod h1:ecXRtV4romGPeO6ieExAsUK9cb/3fp9hXN
 github.com/coreos/go-systemd/v22 v22.3.3-0.20220203105225-a9a7ef127534/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/coreos/go-systemd/v22 v22.5.0 h1:RrqgGjYQKalulkV8NGVIfkXQf6YYmOyiJKk8iXXhfZs=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
-github.com/databricks/databricks-sql-go v1.6.0 h1:sYAvzZ8f3LRe/c2OWxxoc4dyjPMvyFMDBJQMh+6r5Ao=
-github.com/databricks/databricks-sql-go v1.6.0/go.mod h1:/FB8hVRN/KGnWStEyz19r2r7TmfBsK8nUv6yMid//tU=
+github.com/databricks/databricks-sql-go v1.9.0 h1:h5w5E3FDMFXHqV7d5w5q3HCq1MVQswjSQfGx+43ThcI=
+github.com/databricks/databricks-sql-go v1.9.0/go.mod h1:TGAVzvXadeKI8me3nKBa/2phLNnyWR6OolYq6iYbN3E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
