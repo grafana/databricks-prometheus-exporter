@@ -15,8 +15,10 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/go-kit/log"
@@ -29,43 +31,55 @@ type BillingCollector struct {
 	db      *sql.DB
 	metrics *MetricDescriptors
 	logger  log.Logger
+	ctx     context.Context
+	config  *Config
 }
 
 // NewBillingCollector creates a new billing metrics collector.
-func NewBillingCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors) *BillingCollector {
+func NewBillingCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors, ctx context.Context, config *Config) *BillingCollector {
 	return &BillingCollector{
 		logger:  logger,
 		db:      db,
 		metrics: metrics,
+		ctx:     ctx,
+		config:  config,
 	}
 }
 
 // Collect retrieves and emits all billing metrics.
+// Queries run in parallel to reduce total scrape time (cost estimate query can take ~100s).
 func (c *BillingCollector) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 	level.Debug(c.logger).Log("msg", "Collecting billing metrics")
 
-	// Collect DBUs Total
-	if err := c.collectBillingDBUs(ch); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect billing DBUs", "err", err)
-		c.emitError(ch, "billing_dbus")
-		// Continue collecting other metrics
-	}
+	var wg sync.WaitGroup
+	wg.Add(3)
 
-	// Collect Cost Estimates
-	if err := c.collectBillingCost(ch); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect billing cost estimates", "err", err)
-		c.emitError(ch, "billing_cost")
-		// Continue collecting other metrics
-	}
+	go func() {
+		defer wg.Done()
+		if err := c.collectBillingDBUs(ch); err != nil {
+			level.Error(c.logger).Log("msg", "Failed to collect billing DBUs", "err", err)
+			c.emitError(ch, "billing_dbus")
+		}
+	}()
 
-	// Collect Price Change Events
-	if err := c.collectPriceChangeEvents(ch); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect price change events", "err", err)
-		c.emitError(ch, "price_changes")
-		// Continue collecting other metrics
-	}
+	go func() {
+		defer wg.Done()
+		if err := c.collectBillingCost(ch); err != nil {
+			level.Error(c.logger).Log("msg", "Failed to collect billing cost estimates", "err", err)
+			c.emitError(ch, "billing_cost")
+		}
+	}()
 
+	go func() {
+		defer wg.Done()
+		if err := c.collectPriceChangeEvents(ch); err != nil {
+			level.Error(c.logger).Log("msg", "Failed to collect price change events", "err", err)
+			c.emitError(ch, "price_changes")
+		}
+	}()
+
+	wg.Wait()
 	level.Debug(c.logger).Log("msg", "Finished collecting billing metrics", "duration_seconds", time.Since(start).Seconds())
 }
 
@@ -73,7 +87,12 @@ func (c *BillingCollector) Collect(ch chan<- prometheus.Metric) {
 func (c *BillingCollector) collectBillingDBUs(ch chan<- prometheus.Metric) error {
 	level.Debug(c.logger).Log("msg", "Querying billing DBUs")
 
-	rows, err := c.db.Query(billingDBUsQuery)
+	lookback := c.config.BillingLookback
+	if lookback == 0 {
+		lookback = DefaultBillingLookback
+	}
+	query := BuildBillingDBUsQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to query billing DBUs: %w", err)
 	}
@@ -113,7 +132,12 @@ func (c *BillingCollector) collectBillingDBUs(ch chan<- prometheus.Metric) error
 func (c *BillingCollector) collectBillingCost(ch chan<- prometheus.Metric) error {
 	level.Debug(c.logger).Log("msg", "Querying billing cost estimates")
 
-	rows, err := c.db.Query(billingCostEstimateQuery)
+	lookback := c.config.BillingLookback
+	if lookback == 0 {
+		lookback = DefaultBillingLookback
+	}
+	query := BuildBillingCostEstimateQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to query billing cost: %w", err)
 	}
@@ -153,7 +177,12 @@ func (c *BillingCollector) collectBillingCost(ch chan<- prometheus.Metric) error
 func (c *BillingCollector) collectPriceChangeEvents(ch chan<- prometheus.Metric) error {
 	level.Debug(c.logger).Log("msg", "Querying price change events")
 
-	rows, err := c.db.Query(priceChangeEventsQuery)
+	lookback := c.config.BillingLookback
+	if lookback == 0 {
+		lookback = DefaultBillingLookback
+	}
+	query := BuildPriceChangeEventsQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to query price changes: %w", err)
 	}
@@ -177,7 +206,7 @@ func (c *BillingCollector) collectPriceChangeEvents(ch chan<- prometheus.Metric)
 
 		ch <- prometheus.MustNewConstMetric(
 			c.metrics.PriceChangeEvents,
-			prometheus.CounterValue,
+			prometheus.GaugeValue,
 			priceChangeCount,
 			skuName.String,
 		)

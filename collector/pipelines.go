@@ -15,6 +15,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -27,8 +28,9 @@ import (
 )
 
 const (
-	// tableCheckInterval defines how often to retry checking for the pipeline_update_timeline table.
-	// If the table is unavailable, we'll check again after this many scrapes.
+	// tableCheckInterval defines how many scrapes to skip before re-checking table availability.
+	// The system.lakeflow.pipeline_update_timeline table may not exist for all workspaces.
+	// We check once, then wait 10 scrapes before retrying to avoid repeated failed queries.
 	tableCheckInterval = 10
 )
 
@@ -36,6 +38,8 @@ const (
 type PipelinesCollector struct {
 	logger log.Logger
 	db     *sql.DB
+	ctx    context.Context
+	config *Config
 
 	// Metric descriptors
 	metrics *MetricDescriptors
@@ -49,11 +53,13 @@ type PipelinesCollector struct {
 }
 
 // NewPipelinesCollector creates a new PipelinesCollector.
-func NewPipelinesCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors) *PipelinesCollector {
+func NewPipelinesCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors, ctx context.Context, config *Config) *PipelinesCollector {
 	return &PipelinesCollector{
 		logger:  logger,
 		db:      db,
 		metrics: metrics,
+		ctx:     ctx,
+		config:  config,
 	}
 }
 
@@ -152,7 +158,10 @@ func (c *PipelinesCollector) checkTableAvailability() {
 
 	// Try a simple query to check if the table exists
 	query := "SELECT 1 FROM system.lakeflow.pipeline_update_timeline LIMIT 1"
-	_, err := c.db.Query(query)
+	rows, err := c.db.QueryContext(c.ctx, query)
+	if rows != nil {
+		rows.Close()
+	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -246,7 +255,12 @@ func (c *PipelinesCollector) handleCollectionError(metricName string, err error)
 
 // collectPipelineRuns collects the total number of pipeline runs per pipeline.
 func (c *PipelinesCollector) collectPipelineRuns(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(pipelineRunsQuery)
+	lookback := c.config.PipelinesLookback
+	if lookback == 0 {
+		lookback = DefaultPipelinesLookback
+	}
+	query := BuildPipelineRunsQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute pipeline runs query: %w", err)
 	}
@@ -263,7 +277,7 @@ func (c *PipelinesCollector) collectPipelineRuns(ch chan<- prometheus.Metric) er
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.PipelineRunsTotal,
-				prometheus.CounterValue,
+				prometheus.GaugeValue,
 				count.Float64,
 				workspaceID.String,
 				pipelineID.String,
@@ -277,7 +291,12 @@ func (c *PipelinesCollector) collectPipelineRuns(ch chan<- prometheus.Metric) er
 
 // collectPipelineRunStatus collects pipeline run counts by status per pipeline.
 func (c *PipelinesCollector) collectPipelineRunStatus(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(pipelineRunStatusQuery)
+	lookback := c.config.PipelinesLookback
+	if lookback == 0 {
+		lookback = DefaultPipelinesLookback
+	}
+	query := BuildPipelineRunStatusQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute pipeline run status query: %w", err)
 	}
@@ -294,7 +313,7 @@ func (c *PipelinesCollector) collectPipelineRunStatus(ch chan<- prometheus.Metri
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.PipelineRunStatusTotal,
-				prometheus.CounterValue,
+				prometheus.GaugeValue,
 				count.Float64,
 				workspaceID.String,
 				pipelineID.String,
@@ -309,7 +328,12 @@ func (c *PipelinesCollector) collectPipelineRunStatus(ch chan<- prometheus.Metri
 
 // collectPipelineRunDuration collects pipeline run duration quantiles per pipeline.
 func (c *PipelinesCollector) collectPipelineRunDuration(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(pipelineRunDurationQuery)
+	lookback := c.config.PipelinesLookback
+	if lookback == 0 {
+		lookback = DefaultPipelinesLookback
+	}
+	query := BuildPipelineRunDurationQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute pipeline run duration query: %w", err)
 	}
@@ -323,7 +347,6 @@ func (c *PipelinesCollector) collectPipelineRunDuration(ch chan<- prometheus.Met
 			return fmt.Errorf("failed to scan pipeline run duration row: %w", err)
 		}
 
-		// Emit p50
 		if p50.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.PipelineRunDurationSeconds,
@@ -335,8 +358,6 @@ func (c *PipelinesCollector) collectPipelineRunDuration(ch chan<- prometheus.Met
 				"0.50",
 			)
 		}
-
-		// Emit p95
 		if p95.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.PipelineRunDurationSeconds,
@@ -348,8 +369,6 @@ func (c *PipelinesCollector) collectPipelineRunDuration(ch chan<- prometheus.Met
 				"0.95",
 			)
 		}
-
-		// Emit p99
 		if p99.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.PipelineRunDurationSeconds,
@@ -368,7 +387,12 @@ func (c *PipelinesCollector) collectPipelineRunDuration(ch chan<- prometheus.Met
 
 // collectPipelineRetryEvents collects the total number of pipeline retry events per pipeline.
 func (c *PipelinesCollector) collectPipelineRetryEvents(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(pipelineRetryEventsQuery)
+	lookback := c.config.PipelinesLookback
+	if lookback == 0 {
+		lookback = DefaultPipelinesLookback
+	}
+	query := BuildPipelineRetryEventsQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute pipeline retry events query: %w", err)
 	}
@@ -385,7 +409,7 @@ func (c *PipelinesCollector) collectPipelineRetryEvents(ch chan<- prometheus.Met
 		if retries.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.PipelineRetryEventsTotal,
-				prometheus.CounterValue,
+				prometheus.GaugeValue,
 				retries.Float64,
 				workspaceID.String,
 				pipelineID.String,
@@ -399,7 +423,12 @@ func (c *PipelinesCollector) collectPipelineRetryEvents(ch chan<- prometheus.Met
 
 // collectPipelineFreshnessLag collects pipeline data freshness lag per pipeline.
 func (c *PipelinesCollector) collectPipelineFreshnessLag(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(pipelineFreshnessLagQuery)
+	lookback := c.config.PipelinesLookback
+	if lookback == 0 {
+		lookback = DefaultPipelinesLookback
+	}
+	query := BuildPipelineFreshnessLagQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute pipeline freshness lag query: %w", err)
 	}

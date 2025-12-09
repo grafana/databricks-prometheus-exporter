@@ -15,6 +15,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -28,17 +29,21 @@ import (
 type SQLWarehouseCollector struct {
 	logger log.Logger
 	db     *sql.DB
+	ctx    context.Context
+	config *Config
 
 	// Metric descriptors
 	metrics *MetricDescriptors
 }
 
 // NewSQLWarehouseCollector creates a new SQLWarehouseCollector.
-func NewSQLWarehouseCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors) *SQLWarehouseCollector {
+func NewSQLWarehouseCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors, ctx context.Context, config *Config) *SQLWarehouseCollector {
 	return &SQLWarehouseCollector{
 		logger:  logger,
 		db:      db,
 		metrics: metrics,
+		ctx:     ctx,
+		config:  config,
 	}
 }
 
@@ -77,7 +82,12 @@ func (c *SQLWarehouseCollector) Collect(ch chan<- prometheus.Metric) {
 
 // collectQueries collects the total number of queries executed per warehouse.
 func (c *SQLWarehouseCollector) collectQueries(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(queriesQuery)
+	lookback := c.config.QueriesLookback
+	if lookback == 0 {
+		lookback = DefaultQueriesLookback
+	}
+	query := BuildQueriesQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute queries query: %w", err)
 	}
@@ -94,7 +104,7 @@ func (c *SQLWarehouseCollector) collectQueries(ch chan<- prometheus.Metric) erro
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.QueriesTotal,
-				prometheus.CounterValue,
+				prometheus.GaugeValue, // Gauge because this is a sliding window count that can decrease
 				count.Float64,
 				workspaceID.String,
 				warehouseID.String,
@@ -107,7 +117,12 @@ func (c *SQLWarehouseCollector) collectQueries(ch chan<- prometheus.Metric) erro
 
 // collectQueryErrors collects the total number of query errors per warehouse.
 func (c *SQLWarehouseCollector) collectQueryErrors(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(queryErrorsQuery)
+	lookback := c.config.QueriesLookback
+	if lookback == 0 {
+		lookback = DefaultQueriesLookback
+	}
+	query := BuildQueryErrorsQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute query errors query: %w", err)
 	}
@@ -124,7 +139,7 @@ func (c *SQLWarehouseCollector) collectQueryErrors(ch chan<- prometheus.Metric) 
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.QueryErrorsTotal,
-				prometheus.CounterValue,
+				prometheus.GaugeValue, // Gauge because this is a sliding window count that can decrease
 				count.Float64,
 				workspaceID.String,
 				warehouseID.String,
@@ -137,7 +152,12 @@ func (c *SQLWarehouseCollector) collectQueryErrors(ch chan<- prometheus.Metric) 
 
 // collectQueryDuration collects query duration quantiles per warehouse.
 func (c *SQLWarehouseCollector) collectQueryDuration(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(queryDurationQuery)
+	lookback := c.config.QueriesLookback
+	if lookback == 0 {
+		lookback = DefaultQueriesLookback
+	}
+	query := BuildQueryDurationQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute query duration query: %w", err)
 	}
@@ -193,7 +213,12 @@ func (c *SQLWarehouseCollector) collectQueryDuration(ch chan<- prometheus.Metric
 
 // collectQueriesRunning collects the current number of running queries per warehouse.
 func (c *SQLWarehouseCollector) collectQueriesRunning(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(queriesRunningQuery)
+	lookback := c.config.QueriesLookback
+	if lookback == 0 {
+		lookback = DefaultQueriesLookback
+	}
+	query := BuildQueriesRunningQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute running queries query: %w", err)
 	}

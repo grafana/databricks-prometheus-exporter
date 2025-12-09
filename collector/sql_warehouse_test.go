@@ -15,6 +15,7 @@
 package collector
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -33,7 +34,7 @@ func TestNewSQLWarehouseCollector(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics)
+	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	if collector == nil {
 		t.Fatal("expected collector to be created, got nil")
@@ -61,7 +62,7 @@ func TestSQLWarehouseCollector_Describe(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics)
+	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	descCh := make(chan *prometheus.Desc, 10)
 	go func() {
@@ -96,7 +97,7 @@ func TestSQLWarehouseCollector_CollectQueries(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.query.history").WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics)
+	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -152,7 +153,7 @@ func TestSQLWarehouseCollector_CollectQueryErrors(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "warehouse_id", "max_concurrent"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics)
+	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -207,7 +208,7 @@ func TestSQLWarehouseCollector_CollectQueryDuration(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "warehouse_id", "max_concurrent"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics)
+	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -260,7 +261,7 @@ func TestSQLWarehouseCollector_CollectWithError(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "warehouse_id", "max_concurrent"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics)
+	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	ch := make(chan prometheus.Metric, 10)
 	go func() {
@@ -303,7 +304,7 @@ func TestSQLWarehouseCollector_CollectQueriesRunning(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.query.history").WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics)
+	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Use testutil to count metrics
 	count := testutil.CollectAndCount(collector)

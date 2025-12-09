@@ -15,6 +15,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -28,17 +29,20 @@ import (
 type JobsCollector struct {
 	logger log.Logger
 	db     *sql.DB
+	ctx    context.Context
+	config *Config
 
-	// Metric descriptors
 	metrics *MetricDescriptors
 }
 
 // NewJobsCollector creates a new JobsCollector.
-func NewJobsCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors) *JobsCollector {
+func NewJobsCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors, ctx context.Context, config *Config) *JobsCollector {
 	return &JobsCollector{
 		logger:  logger,
 		db:      db,
 		metrics: metrics,
+		ctx:     ctx,
+		config:  config,
 	}
 }
 
@@ -56,7 +60,6 @@ func (c *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 	level.Debug(c.logger).Log("msg", "Collecting job metrics")
 
-	// Collect each metric, but continue on errors
 	if err := c.collectJobRuns(ch); err != nil {
 		level.Error(c.logger).Log("msg", "Failed to collect job runs", "err", err)
 	}
@@ -82,7 +85,12 @@ func (c *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 
 // collectJobRuns collects the total number of job runs per job.
 func (c *JobsCollector) collectJobRuns(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(jobRunsQuery)
+	lookback := c.config.JobsLookback
+	if lookback == 0 {
+		lookback = DefaultJobsLookback
+	}
+	query := BuildJobRunsQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute job runs query: %w", err)
 	}
@@ -99,7 +107,7 @@ func (c *JobsCollector) collectJobRuns(ch chan<- prometheus.Metric) error {
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.JobRunsTotal,
-				prometheus.CounterValue,
+				prometheus.GaugeValue,
 				count.Float64,
 				workspaceID.String,
 				jobID.String,
@@ -113,7 +121,12 @@ func (c *JobsCollector) collectJobRuns(ch chan<- prometheus.Metric) error {
 
 // collectJobRunStatus collects job run counts by status per job.
 func (c *JobsCollector) collectJobRunStatus(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(jobRunStatusQuery)
+	lookback := c.config.JobsLookback
+	if lookback == 0 {
+		lookback = DefaultJobsLookback
+	}
+	query := BuildJobRunStatusQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute job run status query: %w", err)
 	}
@@ -130,7 +143,7 @@ func (c *JobsCollector) collectJobRunStatus(ch chan<- prometheus.Metric) error {
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.JobRunStatusTotal,
-				prometheus.CounterValue,
+				prometheus.GaugeValue,
 				count.Float64,
 				workspaceID.String,
 				jobID.String,
@@ -145,7 +158,12 @@ func (c *JobsCollector) collectJobRunStatus(ch chan<- prometheus.Metric) error {
 
 // collectJobRunDuration collects job run duration quantiles per job.
 func (c *JobsCollector) collectJobRunDuration(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(jobRunDurationQuery)
+	lookback := c.config.JobsLookback
+	if lookback == 0 {
+		lookback = DefaultJobsLookback
+	}
+	query := BuildJobRunDurationQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute job run duration query: %w", err)
 	}
@@ -159,7 +177,6 @@ func (c *JobsCollector) collectJobRunDuration(ch chan<- prometheus.Metric) error
 			return fmt.Errorf("failed to scan job run duration row: %w", err)
 		}
 
-		// Emit p50
 		if p50.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.JobRunDurationSeconds,
@@ -171,8 +188,6 @@ func (c *JobsCollector) collectJobRunDuration(ch chan<- prometheus.Metric) error
 				"0.50",
 			)
 		}
-
-		// Emit p95
 		if p95.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.JobRunDurationSeconds,
@@ -184,8 +199,6 @@ func (c *JobsCollector) collectJobRunDuration(ch chan<- prometheus.Metric) error
 				"0.95",
 			)
 		}
-
-		// Emit p99
 		if p99.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.JobRunDurationSeconds,
@@ -204,11 +217,21 @@ func (c *JobsCollector) collectJobRunDuration(ch chan<- prometheus.Metric) error
 
 // collectTaskRetries collects the total number of task retries per job and task.
 func (c *JobsCollector) collectTaskRetries(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(taskRetriesQuery)
+	lookback := c.config.JobsLookback
+	if lookback == 0 {
+		lookback = DefaultJobsLookback
+	}
+	query := BuildTaskRetriesQuery(lookback)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute task retries query: %w", err)
 	}
 	defer rows.Close()
+
+	// Skip task retries if disabled (high cardinality due to task_key)
+	if !c.config.CollectTaskRetries {
+		return nil
+	}
 
 	for rows.Next() {
 		var workspaceID, jobID, jobName, taskKey sql.NullString
@@ -221,7 +244,7 @@ func (c *JobsCollector) collectTaskRetries(ch chan<- prometheus.Metric) error {
 		if retries.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.TaskRetriesTotal,
-				prometheus.CounterValue,
+				prometheus.GaugeValue,
 				retries.Float64,
 				workspaceID.String,
 				jobID.String,
@@ -236,7 +259,16 @@ func (c *JobsCollector) collectTaskRetries(ch chan<- prometheus.Metric) error {
 
 // collectJobSLAMiss collects the number of jobs that missed their SLA per job.
 func (c *JobsCollector) collectJobSLAMiss(ch chan<- prometheus.Metric) error {
-	rows, err := c.db.Query(jobSLAMissQuery)
+	lookback := c.config.JobsLookback
+	if lookback == 0 {
+		lookback = DefaultJobsLookback
+	}
+	slaThreshold := c.config.SLAThresholdSeconds
+	if slaThreshold == 0 {
+		slaThreshold = DefaultSLAThresholdSeconds
+	}
+	query := BuildJobSLAMissQuery(lookback, slaThreshold)
+	rows, err := c.db.QueryContext(c.ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to execute job SLA miss query: %w", err)
 	}
@@ -253,7 +285,7 @@ func (c *JobsCollector) collectJobSLAMiss(ch chan<- prometheus.Metric) error {
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
 				c.metrics.JobSLAMissTotal,
-				prometheus.CounterValue,
+				prometheus.GaugeValue,
 				count.Float64,
 				workspaceID.String,
 				jobID.String,

@@ -19,11 +19,10 @@ import "github.com/prometheus/client_golang/prometheus"
 // MetricDescriptors holds all Prometheus metric descriptors for the Databricks exporter.
 type MetricDescriptors struct {
 	// Billing & Cost Metrics (FinOps)
-	BillingDBUsTotal            *prometheus.Desc
-	BillingCostEstimateUSD      *prometheus.Desc
-	PriceChangeEvents           *prometheus.Desc
-	BillingExportErrorsTotal    *prometheus.Desc
-	BillingCSVRowsIngestedTotal *prometheus.Desc
+	BillingDBUsTotal         *prometheus.Desc
+	BillingCostEstimateUSD   *prometheus.Desc
+	PriceChangeEvents        *prometheus.Desc
+	BillingExportErrorsTotal *prometheus.Desc
 
 	// Jobs Metrics (SRE/Platform)
 	JobRunsTotal          *prometheus.Desc
@@ -82,46 +81,39 @@ func NewMetricDescriptors() *MetricDescriptors {
 			nil,
 		),
 
-		BillingCSVRowsIngestedTotal: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "billing", "csv_rows_ingested_total"),
-			"Rows ingested from Billable Usage CSV (fallback path) for pipeline health.",
-			nil,
-			nil,
-		),
-
 		// ===== Jobs Metrics (SRE/Platform) =====
 
 		JobRunsTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "job_runs_total"),
-			"Number of Lakeflow Jobs runs per workspace, job ID and job name.",
+			"Number of Lakeflow Jobs runs per workspace and job.",
 			[]string{labelWorkspaceID, labelJobID, labelJobName},
 			nil,
 		),
 
 		JobRunStatusTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "job_run_status_total"),
-			"Job status counts (SUCCEEDED/FAILED/CANCELED) per workspace, job ID and job name.",
+			"Job status counts (SUCCEEDED/FAILED/CANCELED) per workspace and job.",
 			[]string{labelWorkspaceID, labelJobID, labelJobName, labelStatus},
 			nil,
 		),
 
 		JobRunDurationSeconds: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "job_run_duration_seconds"),
-			"Job run duration quantiles (p50/p95/p99) per workspace, job ID and job name.",
+			"Job run duration quantiles (p50/p95/p99) per workspace and job.",
 			[]string{labelWorkspaceID, labelJobID, labelJobName, labelQuantile},
 			nil,
 		),
 
 		TaskRetriesTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "task_retries_total"),
-			"Number of retries across job tasks per workspace, job ID, job name and task key.",
+			"Number of retries across job tasks per workspace, job, and task key.",
 			[]string{labelWorkspaceID, labelJobID, labelJobName, labelTaskKey},
 			nil,
 		),
 
 		JobSLAMissTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "job_sla_miss_total"),
-			"Job runs exceeding configured SLA threshold per workspace, job ID and job name.",
+			"Job runs exceeding configured SLA threshold per workspace and job.",
 			[]string{labelWorkspaceID, labelJobID, labelJobName},
 			nil,
 		),
@@ -130,35 +122,35 @@ func NewMetricDescriptors() *MetricDescriptors {
 
 		PipelineRunsTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "pipeline_runs_total"),
-			"DLT / Lakeflow Pipelines executions per workspace, pipeline ID and pipeline name.",
+			"DLT / Lakeflow Pipelines executions per workspace and pipeline.",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName},
 			nil,
 		),
 
 		PipelineRunStatusTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "pipeline_run_status_total"),
-			"Pipeline run status counts (COMPLETED/FAILED) per workspace, pipeline ID and pipeline name.",
+			"Pipeline run status counts (COMPLETED/FAILED) per workspace and pipeline.",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName, labelStatus},
 			nil,
 		),
 
 		PipelineRunDurationSeconds: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "pipeline_run_duration_seconds"),
-			"Pipeline run duration quantiles (p50/p95/p99) per workspace, pipeline ID and pipeline name.",
+			"Pipeline run duration quantiles (p50/p95/p99) per workspace and pipeline.",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName, labelQuantile},
 			nil,
 		),
 
 		PipelineRetryEventsTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "pipeline_retry_events_total"),
-			"Retry/backoff events within pipeline updates per workspace, pipeline ID and pipeline name.",
+			"Retry/backoff events within pipeline updates per workspace and pipeline.",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName},
 			nil,
 		),
 
 		PipelineFreshnessLagSeconds: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "pipeline_freshness_lag_seconds"),
-			"Data freshness lag vs target watermark per workspace, pipeline ID and pipeline name.",
+			"Data freshness lag vs target watermark per workspace and pipeline.",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName},
 			nil,
 		),
@@ -197,9 +189,10 @@ func NewMetricDescriptors() *MetricDescriptors {
 
 		Up: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "up"),
-			"Metric indicating the status of the exporter collection. "+
-				"1 indicates successful connection and metric collection. "+
-				"0 indicates failure to collect one or more metrics.",
+			"Metric indicating whether the exporter successfully connected to Databricks. "+
+				"1 indicates successful database connection. "+
+				"0 indicates failure to establish database connection. "+
+				"Note: This metric is emitted early in the scrape cycle; individual query failures are logged but do not affect this metric.",
 			nil,
 			nil,
 		),
@@ -214,7 +207,6 @@ func (m *MetricDescriptors) Describe(ch chan<- *prometheus.Desc) {
 	ch <- m.BillingCostEstimateUSD
 	ch <- m.PriceChangeEvents
 	ch <- m.BillingExportErrorsTotal
-	ch <- m.BillingCSVRowsIngestedTotal
 
 	// Jobs
 	ch <- m.JobRunsTotal

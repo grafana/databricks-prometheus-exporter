@@ -40,12 +40,27 @@ var (
 	warehouseHTTPPath = kingpin.Flag("warehouse-http-path", "The HTTP path of the SQL Warehouse (e.g., /sql/1.0/warehouses/abc123def456).").Envar("DATABRICKS_EXPORTER_WAREHOUSE_HTTP_PATH").Required().String()
 	clientID          = kingpin.Flag("client-id", "The OAuth2 Client ID (Application ID) for Service Principal authentication.").Envar("DATABRICKS_EXPORTER_CLIENT_ID").Required().String()
 	clientSecret      = kingpin.Flag("client-secret", "The OAuth2 Client Secret for Service Principal authentication.").Envar("DATABRICKS_EXPORTER_CLIENT_SECRET").Required().String()
+
+	// Query settings
+	queryTimeout = kingpin.Flag("query-timeout", "Timeout for individual database queries.").Default("120s").Envar("DATABRICKS_EXPORTER_QUERY_TIMEOUT").Duration()
+
+	// Lookback windows
+	billingLookback   = kingpin.Flag("billing-lookback", "How far back to look for billing data.").Default("24h").Envar("DATABRICKS_EXPORTER_BILLING_LOOKBACK").Duration()
+	jobsLookback      = kingpin.Flag("jobs-lookback", "How far back to look for job runs.").Default("2h").Envar("DATABRICKS_EXPORTER_JOBS_LOOKBACK").Duration()
+	pipelinesLookback = kingpin.Flag("pipelines-lookback", "How far back to look for pipeline runs.").Default("2h").Envar("DATABRICKS_EXPORTER_PIPELINES_LOOKBACK").Duration()
+	queriesLookback   = kingpin.Flag("queries-lookback", "How far back to look for SQL warehouse queries.").Default("1h").Envar("DATABRICKS_EXPORTER_QUERIES_LOOKBACK").Duration()
+
+	// SLA settings (default matches collector.DefaultSLAThresholdSeconds)
+	slaThreshold = kingpin.Flag("sla-threshold", "Duration threshold (in seconds) for job SLA miss detection.").Default("3600").Envar("DATABRICKS_EXPORTER_SLA_THRESHOLD").Int()
+
+	// Cardinality controls
+	collectTaskRetries = kingpin.Flag("collect-task-retries", "Collect task retry metrics (high cardinality due to task_key label).").Default("false").Envar("DATABRICKS_EXPORTER_COLLECT_TASK_RETRIES").Bool()
 )
 
 const (
 	// The name of the exporter.
 	exporterName    = "databricks_exporter"
-	landingPageHtml = `<html>
+	landingPageHTML = `<html>
 <head><title>Databricks exporter</title></head>
 	<body>
 		<h1>Databricks exporter</h1>
@@ -71,6 +86,19 @@ func main() {
 		WarehouseHTTPPath: *warehouseHTTPPath,
 		ClientID:          *clientID,
 		ClientSecret:      *clientSecret,
+		QueryTimeout:      *queryTimeout,
+
+		// Lookback windows
+		BillingLookback:   *billingLookback,
+		JobsLookback:      *jobsLookback,
+		PipelinesLookback: *pipelinesLookback,
+		QueriesLookback:   *queriesLookback,
+
+		// SLA settings
+		SLAThresholdSeconds: *slaThreshold,
+
+		// Cardinality controls
+		CollectTaskRetries: *collectTaskRetries,
 	}
 
 	if err := c.Validate(); err != nil {
@@ -78,7 +106,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	col := collector.NewCollector(logger, c)
+	// Add component prefix to logger for better log correlation
+	collectorLogger := log.With(logger, "component", "databricks-exporter")
+	col := collector.NewCollector(collectorLogger, c)
 
 	// Register collector with prometheus client library
 	prometheus.MustRegister(col)
@@ -87,12 +117,14 @@ func main() {
 }
 
 func serveMetrics(logger log.Logger) {
-	landingPage := []byte(fmt.Sprintf(landingPageHtml, *metricPath))
+	landingPage := []byte(fmt.Sprintf(landingPageHTML, *metricPath))
 
 	http.Handle(*metricPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=UTF-8") // nolint: errcheck
-		w.Write(landingPage)                                       // nolint: errcheck
+		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		if _, err := w.Write(landingPage); err != nil {
+			level.Error(logger).Log("msg", "Failed to write landing page", "err", err)
+		}
 	})
 
 	srv := &http.Server{}

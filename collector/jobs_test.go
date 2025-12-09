@@ -15,6 +15,7 @@
 package collector
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -33,7 +34,7 @@ func TestNewJobsCollector(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics)
+	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	if collector == nil {
 		t.Fatal("expected collector to be created, got nil")
@@ -61,7 +62,7 @@ func TestJobsCollector_Describe(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics)
+	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	descCh := make(chan *prometheus.Desc, 10)
 	go func() {
@@ -96,7 +97,7 @@ func TestJobsCollector_CollectJobRuns(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics)
+	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -155,7 +156,7 @@ func TestJobsCollector_CollectJobRunStatus(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics)
+	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -212,7 +213,7 @@ func TestJobsCollector_CollectJobRunDuration(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics)
+	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -267,7 +268,7 @@ func TestJobsCollector_CollectWithError(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics)
+	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	ch := make(chan prometheus.Metric, 10)
 	go func() {
@@ -313,7 +314,7 @@ func TestJobsCollector_CollectTaskRetries(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics)
+	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	ch := make(chan prometheus.Metric, 10)
 	go func() {
@@ -321,10 +322,8 @@ func TestJobsCollector_CollectTaskRetries(t *testing.T) {
 		close(ch)
 	}()
 
-	// Collect all metrics
-	metricsCollected := make([]prometheus.Metric, 0)
-	for m := range ch {
-		metricsCollected = append(metricsCollected, m)
+	// Drain the channel
+	for range ch {
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -357,7 +356,7 @@ func TestJobsCollector_CollectJobSLAMiss(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics)
+	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Use testutil to count metrics
 	count := testutil.CollectAndCount(collector)

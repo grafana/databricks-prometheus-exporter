@@ -15,6 +15,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -22,36 +23,28 @@ import (
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestNewBillingCollector(t *testing.T) {
+func TestBillingCollector_Initialization(t *testing.T) {
 	db, _, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create mock db: %v", err)
-	}
+	require.NoError(t, err, "failed to create mock db")
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
 	logger := log.NewNopLogger()
 
-	collector := NewBillingCollector(logger, db, metrics)
+	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
-	if collector == nil {
-		t.Fatal("NewBillingCollector returned nil")
-	}
-	if collector.db != db {
-		t.Error("db not set correctly")
-	}
-	if collector.metrics != metrics {
-		t.Error("metrics not set correctly")
-	}
+	require.NotNil(t, collector, "NewBillingCollector returned nil")
+	assert.Equal(t, db, collector.db, "db not set correctly")
+	assert.Equal(t, metrics, collector.metrics, "metrics not set correctly")
 }
 
 func TestBillingCollector_CollectBillingDBUs(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create mock db: %v", err)
-	}
+	require.NoError(t, err, "failed to create mock db")
 	defer db.Close()
 
 	// Set up mock expectations
@@ -65,16 +58,14 @@ func TestBillingCollector_CollectBillingDBUs(t *testing.T) {
 
 	metrics := NewMetricDescriptors()
 	logger := log.NewNopLogger()
-	collector := NewBillingCollector(logger, db, metrics)
+	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Collect metrics
 	ch := make(chan prometheus.Metric, 10)
 	err = collector.collectBillingDBUs(ch)
 	close(ch)
 
-	if err != nil {
-		t.Fatalf("collectBillingDBUs failed: %v", err)
-	}
+	require.NoError(t, err, "collectBillingDBUs failed")
 
 	// Verify metrics
 	count := 0
@@ -83,15 +74,10 @@ func TestBillingCollector_CollectBillingDBUs(t *testing.T) {
 
 		// Extract metric details
 		pb := &dto.Metric{}
-		if err := m.Write(pb); err != nil {
-			t.Fatalf("failed to write metric: %v", err)
-		}
+		require.NoError(t, m.Write(pb), "failed to write metric")
 
 		// Verify it's a gauge
-		if pb.Gauge == nil {
-			t.Error("expected gauge metric")
-			continue
-		}
+		require.NotNil(t, pb.Gauge, "expected gauge metric")
 
 		// Verify labels
 		labels := make(map[string]string)
@@ -99,27 +85,17 @@ func TestBillingCollector_CollectBillingDBUs(t *testing.T) {
 			labels[lp.GetName()] = lp.GetValue()
 		}
 
-		if _, ok := labels["workspace_id"]; !ok {
-			t.Error("missing workspace_id label")
-		}
-		if _, ok := labels["sku_name"]; !ok {
-			t.Error("missing sku_name label")
-		}
+		assert.Contains(t, labels, "workspace_id", "missing workspace_id label")
+		assert.Contains(t, labels, "sku_name", "missing sku_name label")
 
 		// Verify value
-		if pb.Gauge.GetValue() <= 0 {
-			t.Errorf("expected positive value, got %f", pb.Gauge.GetValue())
-		}
+		assert.Greater(t, pb.Gauge.GetValue(), float64(0), "expected positive value")
 	}
 
-	if count != 3 {
-		t.Errorf("expected 3 metrics, got %d", count)
-	}
+	assert.Equal(t, 3, count, "expected 3 metrics")
 
 	// Verify all expectations were met
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
+	require.NoError(t, mock.ExpectationsWereMet(), "unfulfilled expectations")
 }
 
 func TestBillingCollector_CollectBillingCost(t *testing.T) {
@@ -139,7 +115,7 @@ func TestBillingCollector_CollectBillingCost(t *testing.T) {
 
 	metrics := NewMetricDescriptors()
 	logger := log.NewNopLogger()
-	collector := NewBillingCollector(logger, db, metrics)
+	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Collect metrics
 	ch := make(chan prometheus.Metric, 10)
@@ -197,7 +173,7 @@ func TestBillingCollector_CollectPriceChangeEvents(t *testing.T) {
 
 	metrics := NewMetricDescriptors()
 	logger := log.NewNopLogger()
-	collector := NewBillingCollector(logger, db, metrics)
+	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Collect metrics
 	ch := make(chan prometheus.Metric, 10)
@@ -218,9 +194,9 @@ func TestBillingCollector_CollectPriceChangeEvents(t *testing.T) {
 			t.Fatalf("failed to write metric: %v", err)
 		}
 
-		// Verify it's a counter
-		if pb.Counter == nil {
-			t.Error("expected counter metric")
+		// Verify it's a gauge (sliding window metric)
+		if pb.Gauge == nil {
+			t.Error("expected gauge metric")
 			continue
 		}
 
@@ -246,9 +222,7 @@ func TestBillingCollector_CollectPriceChangeEvents(t *testing.T) {
 
 func TestBillingCollector_CollectWithError(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create mock db: %v", err)
-	}
+	require.NoError(t, err, "failed to create mock db")
 	defer db.Close()
 
 	// Simulate query error
@@ -257,16 +231,14 @@ func TestBillingCollector_CollectWithError(t *testing.T) {
 
 	metrics := NewMetricDescriptors()
 	logger := log.NewNopLogger()
-	collector := NewBillingCollector(logger, db, metrics)
+	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Collect metrics
 	ch := make(chan prometheus.Metric, 10)
 	err = collector.collectBillingDBUs(ch)
 	close(ch)
 
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
+	require.Error(t, err, "expected error, got nil")
 
 	// Verify no metrics were emitted
 	count := 0
@@ -274,9 +246,7 @@ func TestBillingCollector_CollectWithError(t *testing.T) {
 		count++
 	}
 
-	if count != 0 {
-		t.Errorf("expected 0 metrics on error, got %d", count)
-	}
+	assert.Equal(t, 0, count, "expected 0 metrics on error")
 }
 
 func TestBillingCollector_CollectEmitsErrorMetric(t *testing.T) {
@@ -288,7 +258,7 @@ func TestBillingCollector_CollectEmitsErrorMetric(t *testing.T) {
 
 	metrics := NewMetricDescriptors()
 	logger := log.NewNopLogger()
-	collector := NewBillingCollector(logger, db, metrics)
+	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Test error emission
 	ch := make(chan prometheus.Metric, 1)
@@ -358,17 +328,12 @@ func TestBillingCollector_CollectContinuesOnPartialFailure(t *testing.T) {
 
 	metrics := NewMetricDescriptors()
 	logger := log.NewNopLogger()
-	collector := NewBillingCollector(logger, db, metrics)
+	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Collect all metrics - should continue despite first failure
 	ch := make(chan prometheus.Metric, 20)
-	err = collector.Collect(ch)
+	collector.Collect(ch)
 	close(ch)
-
-	// Collect should not return error (continues on partial failure)
-	if err != nil {
-		t.Errorf("Collect should not fail on partial errors: %v", err)
-	}
 
 	// Count metrics (should have cost + price + error metrics)
 	count := 0

@@ -34,7 +34,8 @@ go.work.sum
 .cursorrules
 
 # Binaries
-/databricks-exporter
+databricks-exporter
+bin/
 
 # Test & development scripts
 test_tables.sh
@@ -44,7 +45,6 @@ lefthook.yml
 .build
 
 # build artifacts for mixin
-/mixin/*_out
 mixin/prometheus_alerts.yaml
 
 # Dependency directories (remove the comment below to include it)

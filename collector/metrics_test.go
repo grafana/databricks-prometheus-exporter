@@ -55,11 +55,6 @@ func TestNewMetricDescriptors(t *testing.T) {
 			desc:   metrics.BillingExportErrorsTotal,
 			labels: []string{labelStage},
 		},
-		{
-			name:   "BillingCSVRowsIngestedTotal",
-			desc:   metrics.BillingCSVRowsIngestedTotal,
-			labels: nil,
-		},
 		// Jobs metrics
 		{
 			name:   "JobRunsTotal",
@@ -179,13 +174,13 @@ func TestMetricDescriptors_Describe(t *testing.T) {
 		count++
 	}
 
-	// We expect 20 metrics:
-	// - 5 billing metrics
+	// We expect 19 metrics:
+	// - 4 billing metrics
 	// - 5 jobs metrics
 	// - 5 pipelines metrics
 	// - 4 SQL warehouse metrics
 	// - 1 up metric
-	expectedCount := 20
+	expectedCount := 19
 	if count != expectedCount {
 		t.Errorf("Expected %d metric descriptors, got %d", expectedCount, count)
 	}
@@ -202,7 +197,6 @@ func TestMetricDescriptors_AllMetricsHaveDescriptions(t *testing.T) {
 		{"BillingCostEstimateUSD", metrics.BillingCostEstimateUSD},
 		{"PriceChangeEvents", metrics.PriceChangeEvents},
 		{"BillingExportErrorsTotal", metrics.BillingExportErrorsTotal},
-		{"BillingCSVRowsIngestedTotal", metrics.BillingCSVRowsIngestedTotal},
 		{"JobRunsTotal", metrics.JobRunsTotal},
 		{"JobRunStatusTotal", metrics.JobRunStatusTotal},
 		{"JobRunDurationSeconds", metrics.JobRunDurationSeconds},
@@ -248,11 +242,8 @@ func TestLabelConstants(t *testing.T) {
 		constant string
 		expected string
 	}{
-		{"labelAccountID", labelAccountID, "account_id"},
 		{"labelWorkspaceID", labelWorkspaceID, "workspace_id"},
 		{"labelSKUName", labelSKUName, "sku_name"},
-		{"labelCloud", labelCloud, "cloud"},
-		{"labelUsageUnit", labelUsageUnit, "usage_unit"},
 		{"labelStatus", labelStatus, "status"},
 		{"labelStage", labelStage, "stage"},
 		{"labelQuantile", labelQuantile, "quantile"},

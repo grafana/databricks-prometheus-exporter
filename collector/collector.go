@@ -15,6 +15,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sync"
@@ -30,12 +31,9 @@ import (
 const (
 	namespace = "databricks"
 
-	// Common labels
-	labelAccountID   = "account_id"
+	// Common labels used in metrics
 	labelWorkspaceID = "workspace_id"
 	labelSKUName     = "sku_name"
-	labelCloud       = "cloud"
-	labelUsageUnit   = "usage_unit"
 	labelStatus      = "status"
 	labelStage       = "stage"
 	labelQuantile    = "quantile"
@@ -83,13 +81,14 @@ func openDatabricksDatabase(config *Config) (*sql.DB, error) {
 // Collector is a prometheus.Collector that retrieves all metrics for a Databricks account.
 // It orchestrates multiple specialized collectors for different metric categories.
 type Collector struct {
-	config *Config
-	logger log.Logger
-	// For mocking
-	openDatabase func(*Config) (*sql.DB, error)
+	config       *Config
+	logger       log.Logger
+	openDatabase func(*Config) (*sql.DB, error) // For mocking
+	metrics      *MetricDescriptors
 
-	// Metric descriptors
-	metrics *MetricDescriptors
+	// Persistent connection pool - reused across scrapes
+	db   *sql.DB
+	dbMu sync.RWMutex
 }
 
 // NewCollector creates a new collector from a given config.
@@ -105,10 +104,52 @@ func NewCollector(logger log.Logger, c *Config) *Collector {
 	}
 }
 
-// Describe returns all metric descriptions of the collector by emitting them down the provided channel.
-// It implements prometheus.Collector.
+// getDB returns a healthy database connection, creating one if needed.
+// It tests the connection with Ping() and recreates if unhealthy.
+func (c *Collector) getDB() (*sql.DB, error) {
+	c.dbMu.RLock()
+	db := c.db
+	c.dbMu.RUnlock()
+
+	// Test existing connection
+	if db != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := db.PingContext(ctx); err == nil {
+			return db, nil
+		}
+		level.Warn(c.logger).Log("msg", "Existing connection unhealthy, reconnecting", "err", "ping failed")
+	}
+
+	// Need to create or recreate connection
+	c.dbMu.Lock()
+	defer c.dbMu.Unlock()
+
+	// Double-check after acquiring write lock
+	if c.db != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := c.db.PingContext(ctx); err == nil {
+			return c.db, nil
+		}
+		// Close unhealthy connection
+		c.db.Close()
+		c.db = nil
+	}
+
+	// Create new connection
+	db, err := c.openDatabase(c.config)
+	if err != nil {
+		return nil, err
+	}
+
+	c.db = db
+	level.Debug(c.logger).Log("msg", "Created new database connection pool")
+	return db, nil
+}
+
+// Describe implements prometheus.Collector.
 func (c *Collector) Describe(descs chan<- *prometheus.Desc) {
-	// Describe all metrics from the MetricDescriptors
 	c.metrics.Describe(descs)
 }
 
@@ -117,62 +158,41 @@ func (c *Collector) Describe(descs chan<- *prometheus.Desc) {
 func (c *Collector) Collect(metrics chan<- prometheus.Metric) {
 	level.Debug(c.logger).Log("msg", "Collecting metrics.")
 
-	// Open a new connection to the database each time; This makes the connection more robust to transient failures
-	db, err := c.openDatabase(c.config)
+	// Get a healthy connection from the pool (creates one if needed)
+	db, err := c.getDB()
 	if err != nil {
 		level.Error(c.logger).Log("msg", "Failed to connect to Databricks.", "err", err)
-		// Emit up metric here, to indicate connection failed.
 		metrics <- prometheus.MustNewConstMetric(c.metrics.Up, prometheus.GaugeValue, 0)
 		return
 	}
-	defer db.Close()
+	// Don't close - connection is reused across scrapes
 
-	// Emit up=1 immediately after successful connection
-	// This ensures the metric is always emitted even if subsequent collection hangs/times out
+	// Emit up=1 early so it's always reported even if collection hangs
 	metrics <- prometheus.MustNewConstMetric(c.metrics.Up, prometheus.GaugeValue, 1)
-	level.Debug(c.logger).Log("msg", "Database connection successful, emitted up=1")
+	level.Debug(c.logger).Log("msg", "Database connection healthy, emitted up=1")
 
-	// Initialize specialized collectors with the database connection
-	billingCollector := NewBillingCollector(c.logger, db, c.metrics)
-	jobsCollector := NewJobsCollector(c.logger, db, c.metrics)
-	pipelinesCollector := NewPipelinesCollector(c.logger, db, c.metrics)
-	sqlWarehouseCollector := NewSQLWarehouseCollector(c.logger, db, c.metrics)
+	queryTimeout := c.config.QueryTimeout
+	if queryTimeout == 0 {
+		queryTimeout = DefaultQueryTimeout
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
+	defer cancel()
+
+	billingCollector := NewBillingCollector(c.logger, db, c.metrics, ctx, c.config)
+	jobsCollector := NewJobsCollector(c.logger, db, c.metrics, ctx, c.config)
+	pipelinesCollector := NewPipelinesCollector(c.logger, db, c.metrics, ctx, c.config)
+	sqlWarehouseCollector := NewSQLWarehouseCollector(c.logger, db, c.metrics, ctx, c.config)
 
 	start := time.Now()
 
-	// Create a WaitGroup to run collectors in parallel
-	// This significantly reduces total collection time
+	// Run collectors in parallel to reduce total scrape time
 	var wg sync.WaitGroup
-
-	// Collect billing metrics in parallel
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		billingCollector.Collect(metrics)
-	}()
-
-	// Collect jobs metrics in parallel
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		jobsCollector.Collect(metrics)
-	}()
-
-	// Collect pipelines metrics in parallel
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		pipelinesCollector.Collect(metrics)
-	}()
-
-	// Collect SQL warehouse metrics in parallel
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		sqlWarehouseCollector.Collect(metrics)
-	}()
-
-	// Wait for all collectors to finish
+	wg.Add(4)
+	go func() { defer wg.Done(); billingCollector.Collect(metrics) }()
+	go func() { defer wg.Done(); jobsCollector.Collect(metrics) }()
+	go func() { defer wg.Done(); pipelinesCollector.Collect(metrics) }()
+	go func() { defer wg.Done(); sqlWarehouseCollector.Collect(metrics) }()
 	wg.Wait()
 
 	level.Debug(c.logger).Log("msg", "Finished collecting metrics", "duration_seconds", time.Since(start).Seconds())

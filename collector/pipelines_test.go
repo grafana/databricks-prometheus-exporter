@@ -15,6 +15,7 @@
 package collector
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -33,7 +34,7 @@ func TestNewPipelinesCollector(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics)
+	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	if collector == nil {
 		t.Fatal("expected collector to be created, got nil")
@@ -61,7 +62,7 @@ func TestPipelinesCollector_Describe(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics)
+	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	descCh := make(chan *prometheus.Desc, 10)
 	go func() {
@@ -100,7 +101,7 @@ func TestPipelinesCollector_CollectPipelineRuns(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics)
+	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -163,7 +164,7 @@ func TestPipelinesCollector_CollectPipelineRunStatus(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics)
+	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -224,7 +225,7 @@ func TestPipelinesCollector_CollectPipelineRunDuration(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics)
+	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -283,7 +284,7 @@ func TestPipelinesCollector_CollectWithError(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics)
+	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	ch := make(chan prometheus.Metric, 10)
 	go func() {
@@ -333,7 +334,7 @@ func TestPipelinesCollector_CollectRetryEvents(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics)
+	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	ch := make(chan prometheus.Metric, 10)
 	go func() {
@@ -341,10 +342,8 @@ func TestPipelinesCollector_CollectRetryEvents(t *testing.T) {
 		close(ch)
 	}()
 
-	// Collect all metrics
-	metricsCollected := make([]prometheus.Metric, 0)
-	for m := range ch {
-		metricsCollected = append(metricsCollected, m)
+	// Drain the channel
+	for range ch {
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -382,7 +381,7 @@ func TestPipelinesCollector_CollectFreshnessLag(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics)
+	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
 
 	// Use testutil to count metrics
 	count := testutil.CollectAndCount(collector)

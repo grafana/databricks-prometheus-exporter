@@ -77,8 +77,8 @@ func TestCollectorDescribe(t *testing.T) {
 		descriptions = append(descriptions, desc)
 	}
 
-	// Should have all 20 metrics (18 main + 2 future billing metrics + 1 up metric)
-	expectedCount := 20
+	// Should have all 19 metrics
+	expectedCount := 19
 	if len(descriptions) != expectedCount {
 		t.Errorf("expected %d metric descriptions, got %d", expectedCount, len(descriptions))
 	}
@@ -173,46 +173,6 @@ func TestCollectorMetricNames(t *testing.T) {
 
 	// Note: databricks_billing_account_price will only appear if data is successfully collected
 	// Since we're mocking a connection failure, we only expect the 'up' metric
-}
-
-func TestCollectorLabels(t *testing.T) {
-	expectedLabels := []string{
-		labelAccountID,
-		labelWorkspaceID,
-		labelSKUName,
-		labelCloud,
-		labelUsageUnit,
-	}
-
-	// Verify labels are correctly defined
-	for _, label := range expectedLabels {
-		if label == "" {
-			t.Errorf("label should not be empty")
-		}
-	}
-
-	// Verify expected label values
-	if labelAccountID != "account_id" {
-		t.Errorf("expected labelAccountID to be 'account_id', got '%s'", labelAccountID)
-	}
-	if labelWorkspaceID != "workspace_id" {
-		t.Errorf("expected labelWorkspaceID to be 'workspace_id', got '%s'", labelWorkspaceID)
-	}
-	if labelSKUName != "sku_name" {
-		t.Errorf("expected labelSKUName to be 'sku_name', got '%s'", labelSKUName)
-	}
-	if labelCloud != "cloud" {
-		t.Errorf("expected labelCloud to be 'cloud', got '%s'", labelCloud)
-	}
-	if labelUsageUnit != "usage_unit" {
-		t.Errorf("expected labelUsageUnit to be 'usage_unit', got '%s'", labelUsageUnit)
-	}
-}
-
-func TestNamespaceConstant(t *testing.T) {
-	if namespace != "databricks" {
-		t.Errorf("expected namespace to be 'databricks', got '%s'", namespace)
-	}
 }
 
 func TestOpenDatabricksDatabase_ValidatesConnection(t *testing.T) {
