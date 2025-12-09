@@ -76,7 +76,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
 
       sqlErrorRateStat:
         g.panel.gauge.new('SQL error %')
-        + g.panel.gauge.queryOptions.withTargets([signals.warehousesAndQueries.queryErrorRate1h.asTarget()])
+        + g.panel.gauge.queryOptions.withTargets([signals.warehousesAndQueries.queryErrorRateAggregate.asTarget()])
         + g.panel.gauge.panelOptions.withDescription('SQL query error percentage (adapts to dashboard time range).')
         + g.panel.gauge.standardOptions.withUnit('percentunit')
         + g.panel.gauge.standardOptions.withMin(0)
@@ -425,7 +425,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
       queryErrorRateStat:
         commonlib.panels.generic.stat.base.new(
           'Query error %',
-          targets=[signals.warehousesAndQueries.queryErrorRate1h.asTarget()],
+          targets=[signals.warehousesAndQueries.queryErrorRateAggregate.asTarget()],
           description='Error percentage (adapts to dashboard time range).'
         )
         + g.panel.stat.options.withGraphMode('none')
@@ -480,7 +480,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
       queryLoadChart:
         commonlib.panels.generic.timeSeries.base.new(
           'Query load (rate)',
-          targets=[signals.warehousesAndQueries.queryRate.asTarget()],
+          targets=[signals.warehousesAndQueries.queryLoad.asTarget()],
           description='Query execution rate over time.'
         )
         + g.panel.timeSeries.standardOptions.withUnit('short'),
@@ -533,18 +533,10 @@ local commonlib = import 'common-lib/common/main.libsonnet';
 
       medianLatencyVs7dChart:
         commonlib.panels.generic.timeSeries.base.new(
-          'Query latency: Current median vs. 7 days median',
+          'Query latency: current median vs. 7 days median',
           targets=[
-            g.query.prometheus.new(
-              '${datasource}',
-              'max(databricks_query_duration_seconds{job=~"$job",workspace_id=~"$workspace_id",instance=~"$instance", quantile="0.50"})'
-            )
-            + g.query.prometheus.withLegendFormat('Current p50'),
-            g.query.prometheus.new(
-              '${datasource}',
-              'max(quantile_over_time(0.5, databricks_query_duration_seconds{job=~"$job",workspace_id=~"$workspace_id",instance=~"$instance", quantile="0.50"}[7d]))'
-            )
-            + g.query.prometheus.withLegendFormat('7 days median'),
+            signals.warehousesAndQueries.queryP50Latency.asTarget(),
+            signals.warehousesAndQueries.queryP50Latency7dBaseline.asTarget(),
           ],
           description='Compares current median (p50) query latency to a 7-day rolling median baseline. X-axis shows the selected time range. For each point in time, the baseline is calculated from the previous 7 days. When the current line rises above the baseline, queries are slower than the recent 7-day average.'
         )
@@ -555,7 +547,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
           'DoD changes (queries, error %, p95)',
           targets=[
             signals.warehousesAndQueries.dodQueriesDelta.asTarget(),
-            signals.warehousesAndQueries.queryErrorRate1h.asTarget(),
+            signals.warehousesAndQueries.queryErrorRateAggregate.asTarget(),
             signals.warehousesAndQueries.dodP95LatencyDelta.asTarget(),
           ],
           description='Multiple lines showing daily changes.'
@@ -583,13 +575,13 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 __name__: true,
                 instance: true,
                 job: true,
-                Time: true
+                Time: true,
               },
               indexByName: {
                 workspace_id: 0,
                 job_id: 1,
                 job_name: 2,
-                Value: 3
+                Value: 3,
               },
               renameByName: {
                 workspace_id: 'Workspace ID',
@@ -597,7 +589,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 job_name: 'Job Name',
                 Value: 'Total Runs',
               },
-            }, 
+            },
           },
           { id: 'sortBy', options: { sort: [{ field: 'Total Runs', desc: true }] } },
           { id: 'limit', options: { limitField: 10 } },
@@ -624,13 +616,13 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 __name__: true,
                 instance: true,
                 job: true,
-                quantile: true
+                quantile: true,
               },
               indexByName: {
                 workspace_id: 0,
                 job_id: 1,
                 job_name: 2,
-                Value: 3
+                Value: 3,
               },
               renameByName: {
                 workspace_id: 'Workspace ID',
@@ -638,7 +630,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 job_name: 'Job Name',
                 Value: 'p95 Duration (seconds)',
               },
-            }, 
+            },
           },
           { id: 'sortBy', options: { sort: [{ field: 'p95 Duration (seconds)', desc: true }] } },
           { id: 'limit', options: { limitField: 10 } },
@@ -671,7 +663,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 job_id: 1,
                 job_name: 2,
                 status: 3,
-                Value: 4
+                Value: 4,
               },
               renameByName: {
                 workspace_id: 'Workspace ID',
@@ -680,7 +672,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 status: 'Status',
                 Value: 'Total Failures',
               },
-            }, 
+            },
           },
           { id: 'sortBy', options: { sort: [{ field: 'Total Failures', desc: true }] } },
           { id: 'limit', options: { limitField: 10 } },
@@ -733,7 +725,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 workspace_id: 0,
                 pipeline_id: 1,
                 pipeline_name: 2,
-                Value: 3
+                Value: 3,
               },
               renameByName: {
                 workspace_id: 'Workspace ID',
@@ -741,12 +733,12 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 pipeline_name: 'Pipeline Name',
                 Value: 'Total Runs',
               },
-            }, 
+            },
           },
           { id: 'sortBy', options: { sort: [{ field: 'Total Runs', desc: true }] } },
           { id: 'limit', options: { limitField: 10 } },
         ]),
-      
+
       topPipelinesByDurationTable:
         commonlib.panels.generic.table.base.new(
           'Top pipelines by p95 duration',
@@ -768,13 +760,13 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 __name__: true,
                 instance: true,
                 job: true,
-                quantile: true
+                quantile: true,
               },
               indexByName: {
                 workspace_id: 0,
                 pipeline_id: 1,
                 pipeline_name: 2,
-                Value: 3
+                Value: 3,
               },
               renameByName: {
                 workspace_id: 'Workspace ID',
@@ -782,7 +774,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 pipeline_name: 'Pipeline Name',
                 Value: 'p95 Duration (seconds)',
               },
-            }, 
+            },
           },
           { id: 'sortBy', options: { sort: [{ field: 'p95 Duration (seconds)', desc: true }] } },
           { id: 'limit', options: { limitField: 10 } },
@@ -815,7 +807,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 pipeline_id: 1,
                 pipeline_name: 2,
                 status: 3,
-                Value: 4
+                Value: 4,
               },
               renameByName: {
                 workspace_id: 'Workspace ID',
@@ -824,7 +816,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 status: 'Status',
                 Value: 'Total Failures',
               },
-            }, 
+            },
           },
           { id: 'sortBy', options: { sort: [{ field: 'Total Failures', desc: true }] } },
           { id: 'limit', options: { limitField: 10 } },
@@ -856,7 +848,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 workspace_id: 0,
                 pipeline_id: 1,
                 pipeline_name: 2,
-                Value: 3
+                Value: 3,
               },
               renameByName: {
                 workspace_id: 'Workspace ID',
@@ -864,7 +856,7 @@ local commonlib = import 'common-lib/common/main.libsonnet';
                 pipeline_name: 'Pipeline Name',
                 Value: 'Freshness Lag (seconds)',
               },
-            }, 
+            },
           },
           { id: 'sortBy', options: { sort: [{ field: 'Freshness Lag (seconds)', desc: true }] } },
           { id: 'limit', options: { limitField: 10 } },
@@ -915,17 +907,17 @@ local commonlib = import 'common-lib/common/main.libsonnet';
               },
               indexByName: {
                 warehouse_id: 0,
-                Value: 1
+                Value: 1,
               },
               renameByName: {
                 warehouse_id: 'Warehouse ID',
                 Value: 'Total Queries',
-                },
               },
             },
-            { id: 'sortBy', options: { sort: [{ field: 'Total Queries', desc: true }] } },
-            { id: 'limit', options: { limitField: 10 } },
-          ]),
+          },
+          { id: 'sortBy', options: { sort: [{ field: 'Total Queries', desc: true }] } },
+          { id: 'limit', options: { limitField: 10 } },
+        ]),
 
       topWarehousesByErrorsTable:
         commonlib.panels.generic.table.base.new(
@@ -951,17 +943,17 @@ local commonlib = import 'common-lib/common/main.libsonnet';
               },
               indexByName: {
                 warehouse_id: 0,
-                Value: 1
+                Value: 1,
               },
               renameByName: {
                 warehouse_id: 'Warehouse ID',
                 Value: 'Total Errors',
-                },
               },
             },
-            { id: 'sortBy', options: { sort: [{ field: 'Total Errors', desc: true }] } },
-            { id: 'limit', options: { limitField: 10 } },
-          ]),
+          },
+          { id: 'sortBy', options: { sort: [{ field: 'Total Errors', desc: true }] } },
+          { id: 'limit', options: { limitField: 10 } },
+        ]),
 
       topWarehousesByLatencyTable:
         commonlib.panels.generic.table.base.new(
@@ -987,17 +979,17 @@ local commonlib = import 'common-lib/common/main.libsonnet';
               },
               indexByName: {
                 warehouse_id: 0,
-                Value: 1
+                Value: 1,
               },
               renameByName: {
                 warehouse_id: 'Warehouse ID',
                 Value: 'p95 Latency (seconds)',
-                },
               },
             },
-            { id: 'sortBy', options: { sort: [{ field: 'p95 Latency (seconds)', desc: true }] } },
-            { id: 'limit', options: { limitField: 10 } },
-          ]),
+          },
+          { id: 'sortBy', options: { sort: [{ field: 'p95 Latency (seconds)', desc: true }] } },
+          { id: 'limit', options: { limitField: 10 } },
+        ]),
 
       queriesByWarehouseChart:
         commonlib.panels.generic.timeSeries.base.new(

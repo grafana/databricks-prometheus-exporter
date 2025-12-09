@@ -11,8 +11,8 @@ function(this) {
     queryDuration: {
       name: 'Query duration (p95)',
       nameShort: 'Query p95 duration',
-      description: 'Query duration (p95 by workspace).',
-      type: 'raw',
+      description: 'Query duration (p95 by warehouse).',
+      type: 'gauge',
       unit: 's',
       sources: {
         prometheus: {
@@ -50,10 +50,10 @@ function(this) {
       },
     },
 
-    queryErrorRate1h: {
-      name: 'Query error rate',
+    queryErrorRateAggregate: {
+      name: 'Query error rate (aggregate)',
       nameShort: 'Error %',
-      description: 'Query error percentage (adapts to dashboard time range).',
+      description: 'Aggregate query error percentage across all workspaces (adapts to dashboard time range).',
       type: 'raw',
       unit: 'percentunit',
       sources: {
@@ -74,7 +74,7 @@ function(this) {
       name: 'Query p95 latency (max)',
       nameShort: 'p95 latency (max)',
       description: 'Maximum p95 query latency across all warehouses.',
-      type: 'raw',
+      type: 'gauge',
       unit: 's',
       sources: {
         prometheus: {
@@ -87,13 +87,27 @@ function(this) {
     queryP50Latency: {
       name: 'Query p50 latency (max)',
       nameShort: 'p50 latency (max)',
-      description: 'Current p50 query latency.',
-      type: 'raw',
+      description: 'Maximum p50 query latency across all warehouses.',
+      type: 'gauge',
       unit: 's',
       sources: {
         prometheus: {
           expr: 'max(databricks_query_duration_seconds{%(queriesSelector)s, quantile="0.50"})',
-          legendCustomTemplate: 'p50 latency',
+          legendCustomTemplate: 'Current p50',
+        },
+      },
+    },
+
+    queryP50Latency7dBaseline: {
+      name: 'Query p50 latency (7d baseline)',
+      nameShort: 'p50 7d baseline',
+      description: '7-day rolling median baseline for p50 query latency.',
+      type: 'raw',
+      unit: 's',
+      sources: {
+        prometheus: {
+          expr: 'max(quantile_over_time(0.5, databricks_query_duration_seconds{%(queriesSelector)s, quantile="0.50"}[7d]))',
+          legendCustomTemplate: '7 days median',
         },
       },
     },
@@ -102,7 +116,7 @@ function(this) {
       name: 'Total queries running (max)',
       nameShort: 'Total queries running (max)',
       description: 'Maximum number of concurrent queries across all warehouses.',
-      type: 'raw',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
@@ -175,20 +189,6 @@ function(this) {
       },
     },
 
-    queryRate: {
-      name: 'Query load',
-      nameShort: 'Query load',
-      description: 'Query volume (adapts to dashboard time range).',
-      type: 'raw',
-      unit: 'short',
-      sources: {
-        prometheus: {
-          expr: 'sum by (' + aggregationLabels + ') (increase(databricks_queries_total{%(queriesSelector)s}[$__interval:] offset $__interval))',
-          legendCustomTemplate: 'Queries/hour',
-        },
-      },
-    },
-
     queryErrorRate: {
       name: 'Query error rate',
       nameShort: 'Error rate',
@@ -228,12 +228,12 @@ function(this) {
     topWarehousesByQueries: {
       name: 'Top warehouses by queries',
       nameShort: 'Top by queries',
-      description: 'Warehouses ranked by total query volume (cumulative counter).',
-      type: 'raw',
+      description: 'Warehouses ranked by total query volume (sliding window gauge).',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'sum by (warehouse_id) (databricks_queries_total{%(queriesSelector)s})',
+          expr: 'sum by (workspace_id, warehouse_id) (databricks_queries_total{%(queriesSelector)s})',
           legendCustomTemplate: '{{warehouse_id}}',
         },
       },
@@ -242,12 +242,12 @@ function(this) {
     topWarehousesByErrors: {
       name: 'Top warehouses by errors',
       nameShort: 'Top by errors',
-      description: 'Warehouses ranked by total error count (cumulative counter).',
-      type: 'raw',
+      description: 'Warehouses ranked by total error count (sliding window gauge).',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'sum by (warehouse_id) (databricks_query_errors_total{%(queriesSelector)s})',
+          expr: 'sum by (workspace_id, warehouse_id) (databricks_query_errors_total{%(queriesSelector)s})',
           legendCustomTemplate: '{{warehouse_id}}',
         },
       },
@@ -299,7 +299,7 @@ function(this) {
       name: 'Query latency by warehouse (time series)',
       nameShort: 'Latency by warehouse',
       description: 'Query p95 latency over time by warehouse.',
-      type: 'raw',
+      type: 'gauge',
       unit: 's',
       sources: {
         prometheus: {

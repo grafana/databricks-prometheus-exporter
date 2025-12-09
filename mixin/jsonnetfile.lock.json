@@ -18,7 +18,7 @@
           "subdir": "gen/grafonnet-latest"
         }
       },
-      "version": "42d098fae987f25f08480e203ca6ddc548c6efbf",
+      "version": "8a27651b56fbdba45a389ccb11440200091c73a1",
       "sum": "V9vAj21qJOc2DlMPDgB1eEjSQU4A+sAA4AXuJ6bd4xc="
     },
     {
@@ -28,7 +28,7 @@
           "subdir": "gen/grafonnet-v11.0.0"
         }
       },
-      "version": "42d098fae987f25f08480e203ca6ddc548c6efbf",
+      "version": "8a27651b56fbdba45a389ccb11440200091c73a1",
       "sum": "0BvzR0i4bS4hc2O3xDv6i9m52z7mPrjvqxtcPrGhynA="
     },
     {
@@ -38,7 +38,7 @@
           "subdir": "gen/grafonnet-v11.4.0"
         }
       },
-      "version": "42d098fae987f25f08480e203ca6ddc548c6efbf",
+      "version": "8a27651b56fbdba45a389ccb11440200091c73a1",
       "sum": "aVAX09paQYNOoCSKVpuk1exVIyBoMt/C50QJI+Q/3nA="
     },
     {
@@ -48,7 +48,7 @@
           "subdir": "common-lib"
         }
       },
-      "version": "d9709a268f70932be2ba0a5728f01e7f833930e5",
+      "version": "816f0836175fb282a470379249d325e05236576c",
       "sum": "XnpzeZC2Pa1aEtDOqy+KTndcUTnwFMlj6XlZmv3XBj0="
     },
     {
@@ -58,7 +58,7 @@
           "subdir": "grafana-cloud-integration-utils"
         }
       },
-      "version": "d9709a268f70932be2ba0a5728f01e7f833930e5",
+      "version": "816f0836175fb282a470379249d325e05236576c",
       "sum": "f4RYXgxayzDyeBjedbcUWaxIk3WN+y+wsEwcn+cWnJw="
     },
     {
@@ -78,8 +78,8 @@
           "subdir": ""
         }
       },
-      "version": "4eee017d21cb63a303925d1dcd9fc5c496809b46",
-      "sum": "Kh0GbIycNmJPzk6IOMXn1BbtLNyaiiimclYk7+mvsns="
+      "version": "4d7f8cb24d613430799f9d56809cc6964f35cea9",
+      "sum": "hOrwkOx34tOXqoDVnwuI/Uf/dr9HFFSPWpDPOvnEGrk="
     },
     {
       "source": {

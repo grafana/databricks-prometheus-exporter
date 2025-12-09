@@ -1,0 +1,1378 @@
+{
+      "annotations": {
+         "list": [ ]
+      },
+      "description": "Comprehensive view of SQL warehouse performance, query latency, errors, and concurrency.",
+      "links": [
+         {
+            "includeVars": true,
+            "keepTime": true,
+            "title": "Jobs & Pipelines",
+            "type": "link",
+            "url": "/d/databricks_jobs_pipelines/databricks-jobs-and-pipelines"
+         },
+         {
+            "includeVars": true,
+            "keepTime": true,
+            "title": "Overview",
+            "type": "link",
+            "url": "/d/databricks_overview/databricks-overview"
+         }
+      ],
+      "panels": [
+         {
+            "collapsed": false,
+            "gridPos": {
+               "h": 1,
+               "w": 0,
+               "x": 0,
+               "y": 0
+            },
+            "id": 1,
+            "panels": [ ],
+            "title": "SQL warehouse overview",
+            "type": "row"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Total queries executed (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 3,
+               "x": 0,
+               "y": 1
+            },
+            "id": 2,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "sum by (job,workspace_id,instance) (increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Queries",
+                  "refId": "Query load"
+               }
+            ],
+            "title": "Total queries",
+            "type": "stat"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Error percentage (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "percentunit"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 3,
+               "x": 3,
+               "y": 1
+            },
+            "id": 3,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "sum (increase(databricks_query_errors_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))\n/\nsum (increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))\n",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Error rate %",
+                  "refId": "Query error rate (aggregate)"
+               }
+            ],
+            "title": "Query error %",
+            "type": "stat"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Maximum p95 query latency across all warehouses.",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "s"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 3,
+               "x": 6,
+               "y": 1
+            },
+            "id": 4,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max(databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "p95 latency",
+                  "refId": "Query p95 latency (max)"
+               }
+            ],
+            "title": "p95 latency (max)",
+            "type": "stat"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Maximum concurrent queries across all warehouses.",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 3,
+               "x": 9,
+               "y": 1
+            },
+            "id": 5,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max(databricks_queries_running{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Total queries running",
+                  "refId": "Total queries running (max)"
+               }
+            ],
+            "title": "Max concurrent queries (now)",
+            "type": "stat"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Maximum baseline concurrency over 7 days (p95).",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 4,
+               "x": 12,
+               "y": 1
+            },
+            "id": 6,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max(quantile_over_time(0.95, databricks_queries_running{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[7d]))",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "7d baseline",
+                  "refId": "Max concurrent queries (7d p95)"
+               }
+            ],
+            "title": "Max concurrent queries (7d p95)",
+            "type": "stat"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Day-over-day query count change.",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "percentunit"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 4,
+               "x": 16,
+               "y": 1
+            },
+            "id": 7,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "(\n  sum by (job,workspace_id,instance) (increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[24h] offset 1d))\n  -\n  sum by (job,workspace_id,instance) (increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[24h] offset 2d))\n)\n/\nsum by (job,workspace_id,instance) (increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[24h] offset 2d))\n",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "DoD",
+                  "refId": "DoD queries delta"
+               }
+            ],
+            "title": "DoD queries diff %",
+            "type": "stat"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Day-over-day p95 latency change.",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "percentunit"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 4,
+               "x": 20,
+               "y": 1
+            },
+            "id": 8,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max(\n  (\n    avg_over_time(databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}[1d] offset 1d)\n    -\n    avg_over_time(databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}[1d] offset 2d)\n  )\n  /\n  avg_over_time(databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}[1d] offset 2d)\n)\n",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "DoD p95 (max)",
+                  "refId": "DoD p95 latency delta (max)"
+               }
+            ],
+            "title": "DoD p95 latency diff %",
+            "type": "stat"
+         },
+         {
+            "collapsed": false,
+            "gridPos": {
+               "h": 1,
+               "w": 0,
+               "x": 0,
+               "y": 5
+            },
+            "id": 9,
+            "panels": [ ],
+            "title": "Load & latency",
+            "type": "row"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Query execution rate over time.",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 12,
+               "x": 0,
+               "y": 6
+            },
+            "id": 10,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "sum by (job,workspace_id,instance) (increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Queries",
+                  "refId": "Query load"
+               }
+            ],
+            "title": "Query load (rate)",
+            "type": "timeseries"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Query latency: p50 vs. p95.",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "s"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 12,
+               "x": 12,
+               "y": 6
+            },
+            "id": 11,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max(databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.50\"})",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Current p50",
+                  "refId": "Query p50 latency (max)"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max(databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "p95 latency",
+                  "refId": "Query p95 latency (max)"
+               }
+            ],
+            "title": "Query latency: p50 vs. p95",
+            "type": "timeseries"
+         },
+         {
+            "collapsed": false,
+            "gridPos": {
+               "h": 1,
+               "w": 0,
+               "x": 0,
+               "y": 14
+            },
+            "id": 12,
+            "panels": [ ],
+            "title": "Errors, concurrency & workspace distribution",
+            "type": "row"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "SQL error rate with warn/crit bands.",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "percentunit"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 8,
+               "x": 0,
+               "y": 15
+            },
+            "id": 13,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "sum by (job,workspace_id,instance) (increase(databricks_query_errors_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))\n/\nsum by (job,workspace_id,instance) (increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))\n",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "{{workspace_id}} - Error rate %",
+                  "refId": "Query error rate"
+               }
+            ],
+            "title": "SQL error rate",
+            "type": "timeseries"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Overlay showing saturation effect.",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 8,
+               "x": 8,
+               "y": 15
+            },
+            "id": 14,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max(databricks_queries_running{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Total queries running",
+                  "refId": "Total queries running (max)"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max(databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "p95 latency",
+                  "refId": "Query p95 latency (max)"
+               }
+            ],
+            "title": "Concurrency vs latency",
+            "type": "timeseries"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Query volume by workspace.",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 8,
+               "x": 16,
+               "y": 15
+            },
+            "id": 15,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "sum by (workspace_id) (increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "{{workspace_id}}",
+                  "refId": "Queries by workspace"
+               }
+            ],
+            "title": "Queries by workspace",
+            "type": "timeseries"
+         },
+         {
+            "collapsed": false,
+            "gridPos": {
+               "h": 1,
+               "w": 0,
+               "x": 0,
+               "y": 23
+            },
+            "id": 16,
+            "panels": [ ],
+            "title": "Top warehouses",
+            "type": "row"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Warehouses ranked by total query volume.",
+            "fieldConfig": {
+               "overrides": [
+                  {
+                     "matcher": {
+                        "id": "byName",
+                        "options": "Total Queries"
+                     },
+                     "properties": [
+                        {
+                           "id": "unit",
+                           "value": "short"
+                        }
+                     ]
+                  }
+               ]
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 8,
+               "x": 0,
+               "y": 24
+            },
+            "id": 17,
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "sum by (workspace_id, warehouse_id) (databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})",
+                  "format": "table",
+                  "instant": true,
+                  "legendFormat": "{{warehouse_id}}",
+                  "refId": "Top warehouses by queries"
+               }
+            ],
+            "title": "Top warehouses by queries",
+            "transformations": [
+               {
+                  "id": "organize",
+                  "options": {
+                     "excludeByName": {
+                        "Time": true,
+                        "__name__": true,
+                        "instance": true,
+                        "job": true
+                     },
+                     "indexByName": {
+                        "Value": 1,
+                        "warehouse_id": 0
+                     },
+                     "renameByName": {
+                        "Value": "Total Queries",
+                        "warehouse_id": "Warehouse ID"
+                     }
+                  }
+               },
+               {
+                  "id": "sortBy",
+                  "options": {
+                     "sort": [
+                        {
+                           "desc": true,
+                           "field": "Total Queries"
+                        }
+                     ]
+                  }
+               },
+               {
+                  "id": "limit",
+                  "options": {
+                     "limitField": 10
+                  }
+               }
+            ],
+            "type": "table"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Warehouses ranked by total error count.",
+            "fieldConfig": {
+               "overrides": [
+                  {
+                     "matcher": {
+                        "id": "byName",
+                        "options": "Total Errors"
+                     },
+                     "properties": [
+                        {
+                           "id": "unit",
+                           "value": "short"
+                        }
+                     ]
+                  }
+               ]
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 8,
+               "x": 8,
+               "y": 24
+            },
+            "id": 18,
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "sum by (workspace_id, warehouse_id) (databricks_query_errors_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})",
+                  "format": "table",
+                  "instant": true,
+                  "legendFormat": "{{warehouse_id}}",
+                  "refId": "Top warehouses by errors"
+               }
+            ],
+            "title": "Top warehouses by errors",
+            "transformations": [
+               {
+                  "id": "organize",
+                  "options": {
+                     "excludeByName": {
+                        "Time": true,
+                        "__name__": true,
+                        "instance": true,
+                        "job": true
+                     },
+                     "indexByName": {
+                        "Value": 1,
+                        "warehouse_id": 0
+                     },
+                     "renameByName": {
+                        "Value": "Total Errors",
+                        "warehouse_id": "Warehouse ID"
+                     }
+                  }
+               },
+               {
+                  "id": "sortBy",
+                  "options": {
+                     "sort": [
+                        {
+                           "desc": true,
+                           "field": "Total Errors"
+                        }
+                     ]
+                  }
+               },
+               {
+                  "id": "limit",
+                  "options": {
+                     "limitField": 10
+                  }
+               }
+            ],
+            "type": "table"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Warehouses ranked by highest p95 latency.",
+            "fieldConfig": {
+               "overrides": [
+                  {
+                     "matcher": {
+                        "id": "byName",
+                        "options": "p95 Latency (seconds)"
+                     },
+                     "properties": [
+                        {
+                           "id": "unit",
+                           "value": "s"
+                        }
+                     ]
+                  }
+               ]
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 8,
+               "x": 16,
+               "y": 24
+            },
+            "id": 19,
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max by (warehouse_id) (databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})",
+                  "format": "table",
+                  "instant": true,
+                  "legendFormat": "{{warehouse_id}}",
+                  "refId": "Top warehouses by p95 latency"
+               }
+            ],
+            "title": "Top warehouses by p95 latency",
+            "transformations": [
+               {
+                  "id": "organize",
+                  "options": {
+                     "excludeByName": {
+                        "Time": true,
+                        "__name__": true,
+                        "instance": true,
+                        "job": true
+                     },
+                     "indexByName": {
+                        "Value": 1,
+                        "warehouse_id": 0
+                     },
+                     "renameByName": {
+                        "Value": "p95 Latency (seconds)",
+                        "warehouse_id": "Warehouse ID"
+                     }
+                  }
+               },
+               {
+                  "id": "sortBy",
+                  "options": {
+                     "sort": [
+                        {
+                           "desc": true,
+                           "field": "p95 Latency (seconds)"
+                        }
+                     ]
+                  }
+               },
+               {
+                  "id": "limit",
+                  "options": {
+                     "limitField": 10
+                  }
+               }
+            ],
+            "type": "table"
+         },
+         {
+            "collapsed": false,
+            "gridPos": {
+               "h": 1,
+               "w": 0,
+               "x": 0,
+               "y": 32
+            },
+            "id": 20,
+            "panels": [ ],
+            "title": "Distribution & trends",
+            "type": "row"
+         },
+         {
+            "datasource": {
+               "type": "datasource",
+               "uid": "-- Mixed --"
+            },
+            "description": "Query latency distribution histogram per warehouse.",
+            "fieldConfig": {
+               "defaults": {
+                  "unit": "s"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 8,
+               "x": 0,
+               "y": 33
+            },
+            "id": 21,
+            "pluginVersion": "v11.4.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max by (warehouse_id) (databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Warehouse - {{warehouse_id}}",
+                  "refId": "Query duration (p95)"
+               }
+            ],
+            "title": "Query latency distribution per warehouse",
+            "type": "histogram"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Compares current median (p50) query latency to a 7-day rolling median baseline. X-axis shows the selected time range. For each point in time, the baseline is calculated from the previous 7 days. When the current line rises above the baseline, queries are slower than the recent 7-day average.",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "s"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 8,
+               "x": 8,
+               "y": 33
+            },
+            "id": 22,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max(databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.50\"})",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Current p50",
+                  "refId": "Query p50 latency (max)"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max(quantile_over_time(0.5, databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.50\"}[7d]))",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "7 days median",
+                  "refId": "Query p50 latency (7d baseline)"
+               }
+            ],
+            "title": "Query latency: current median vs. 7 days median",
+            "type": "timeseries"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Multiple lines showing daily changes.",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "percentunit"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 8,
+               "x": 16,
+               "y": 33
+            },
+            "id": 23,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "(\n  sum by (job,workspace_id,instance) (increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[24h] offset 1d))\n  -\n  sum by (job,workspace_id,instance) (increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[24h] offset 2d))\n)\n/\nsum by (job,workspace_id,instance) (increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[24h] offset 2d))\n",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "DoD",
+                  "refId": "DoD queries delta"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "sum (increase(databricks_query_errors_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))\n/\nsum (increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))\n",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Error rate %",
+                  "refId": "Query error rate (aggregate)"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "max(\n  (\n    avg_over_time(databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}[1d] offset 1d)\n    -\n    avg_over_time(databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}[1d] offset 2d)\n  )\n  /\n  avg_over_time(databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}[1d] offset 2d)\n)\n",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "DoD p95 (max)",
+                  "refId": "DoD p95 latency delta (max)"
+               }
+            ],
+            "title": "DoD changes (queries, error %, p95)",
+            "type": "timeseries"
+         },
+         {
+            "collapsed": false,
+            "gridPos": {
+               "h": 1,
+               "w": 0,
+               "x": 0,
+               "y": 41
+            },
+            "id": 24,
+            "panels": [ ],
+            "title": "Performance by warehouse",
+            "type": "row"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Query volume over time by warehouse (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 6,
+               "x": 0,
+               "y": 42
+            },
+            "id": 25,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "increase(databricks_queries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval)",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "{{warehouse_id}}",
+                  "refId": "Queries by warehouse (time series)"
+               }
+            ],
+            "title": "Queries by warehouse",
+            "type": "timeseries"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Query errors over time by warehouse (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 6,
+               "x": 6,
+               "y": 42
+            },
+            "id": 26,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "increase(databricks_query_errors_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval)",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "{{warehouse_id}}",
+                  "refId": "Query errors by warehouse (time series)"
+               }
+            ],
+            "title": "Errors by warehouse",
+            "type": "timeseries"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Query p95 latency over time by warehouse.",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "s"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 6,
+               "x": 12,
+               "y": 42
+            },
+            "id": 27,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "databricks_query_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "{{warehouse_id}}",
+                  "refId": "Query latency by warehouse (time series)"
+               }
+            ],
+            "title": "Query p95 latency by warehouse",
+            "type": "timeseries"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Concurrent queries by warehouse.",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 6,
+               "x": 18,
+               "y": 42
+            },
+            "id": 28,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "databricks_queries_running{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "{{warehouse_id}}",
+                  "refId": "Concurrency by warehouse"
+               }
+            ],
+            "title": "Concurrency by warehouse",
+            "type": "timeseries"
+         }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "tags": [
+         "databricks-mixin"
+      ],
+      "templating": {
+         "list": [
+            {
+               "label": "Data source",
+               "name": "datasource",
+               "query": "prometheus",
+               "regex": "",
+               "type": "datasource"
+            },
+            {
+               "allValue": ".+",
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": "${datasource}"
+               },
+               "includeAll": true,
+               "label": "Job",
+               "multi": true,
+               "name": "job",
+               "query": "label_values(databricks_billing_dbus_total{}, job)",
+               "refresh": 2,
+               "sort": 1,
+               "type": "query"
+            },
+            {
+               "allValue": ".*",
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": "${datasource}"
+               },
+               "includeAll": true,
+               "label": "Workspace",
+               "multi": true,
+               "name": "workspace_id",
+               "query": "label_values(databricks_billing_dbus_total{job=~\"$job\"}, workspace_id)",
+               "refresh": 2,
+               "sort": 1,
+               "type": "query"
+            },
+            {
+               "allValue": ".+",
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": "${datasource}"
+               },
+               "includeAll": true,
+               "label": "Instance",
+               "multi": true,
+               "name": "instance",
+               "query": "label_values(databricks_billing_dbus_total{job=~\"$job\",workspace_id=~\"$workspace_id\"}, instance)",
+               "refresh": 2,
+               "sort": 1,
+               "type": "query"
+            }
+         ]
+      },
+      "time": {
+         "from": "now-1h",
+         "to": "now"
+      },
+      "timezone": "default",
+      "title": "Databricks Warehouses & Queries",
+      "uid": "databricks_warehouses_queries"
+   }

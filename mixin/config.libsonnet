@@ -1,6 +1,8 @@
 {
   local this = self,
   filteringSelector: '',
+  // NOTE: 'job' is the Prometheus scrape job label (NOT Databricks jobs).
+  // Required by mixtool lint. Users with multiple exporters can filter by job.
   groupLabels: ['job', 'workspace_id'],
   uid: 'databricks',
   instanceLabels: ['instance'],

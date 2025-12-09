@@ -12,7 +12,7 @@ function(this) {
       name: 'Job run p95 duration (aggregate)',
       nameShort: 'Job p95 (all)',
       description: 'Aggregate p95 job run duration across all jobs (max p95).',
-      type: 'raw',
+      type: 'gauge',
       unit: 's',
       sources: {
         prometheus: {
@@ -74,7 +74,7 @@ function(this) {
       name: 'Pipeline run p95 duration (aggregate)',
       nameShort: 'Pipeline p95 (all)',
       description: 'Aggregate p95 pipeline run duration across all pipelines (max p95).',
-      type: 'raw',
+      type: 'gauge',
       unit: 's',
       sources: {
         prometheus: {
@@ -242,7 +242,7 @@ function(this) {
       name: 'Job duration by job name',
       nameShort: 'Job duration',
       description: 'Job p95 duration by job name.',
-      type: 'raw',
+      type: 'gauge',
       unit: 's',
       sources: {
         prometheus: {
@@ -270,7 +270,7 @@ function(this) {
       name: 'Pipeline duration by pipeline name',
       nameShort: 'Pipeline duration',
       description: 'Pipeline p95 duration by pipeline name.',
-      type: 'raw',
+      type: 'gauge',
       unit: 's',
       sources: {
         prometheus: {
@@ -300,8 +300,8 @@ function(this) {
     topJobsByRunsTableSignal: {
       name: 'Top jobs by runs (table)',
       nameShort: 'Top jobs',
-      description: 'Jobs ranked by total run count (for table display only).',
-      type: 'raw',
+      description: 'Jobs ranked by total run count (sliding window gauge).',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
@@ -314,8 +314,8 @@ function(this) {
     taskRetriesByJobTableSignal: {
       name: 'Task retries by job (table)',
       nameShort: 'Task retries',
-      description: 'Task retries aggregated by job (for table display only).',
-      type: 'raw',
+      description: 'Task retries aggregated by job (sliding window gauge).',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
@@ -342,8 +342,8 @@ function(this) {
     topPipelinesByRunsTableSignal: {
       name: 'Top pipelines by runs (table)',
       nameShort: 'Top pipelines',
-      description: 'Pipelines ranked by total run count (for table display only).',
-      type: 'raw',
+      description: 'Pipelines ranked by total run count (sliding window gauge).',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
