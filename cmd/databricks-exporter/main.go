@@ -42,7 +42,7 @@ var (
 	clientSecret      = kingpin.Flag("client-secret", "The OAuth2 Client Secret for Service Principal authentication.").Envar("DATABRICKS_EXPORTER_CLIENT_SECRET").Required().String()
 
 	// Query settings
-	queryTimeout = kingpin.Flag("query-timeout", "Timeout for individual database queries.").Default("120s").Envar("DATABRICKS_EXPORTER_QUERY_TIMEOUT").Duration()
+	queryTimeout = kingpin.Flag("query-timeout", "Timeout for individual database queries.").Default("5m").Envar("DATABRICKS_EXPORTER_QUERY_TIMEOUT").Duration()
 
 	// Lookback windows
 	billingLookback   = kingpin.Flag("billing-lookback", "How far back to look for billing data.").Default("24h").Envar("DATABRICKS_EXPORTER_BILLING_LOOKBACK").Duration()
