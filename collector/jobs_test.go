@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/prometheus/common/promslog"
 )
 
 func TestNewJobsCollector(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, _, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -20,7 +20,7 @@ func TestNewJobsCollector(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewJobsCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	if collector == nil {
 		t.Fatal("expected collector to be created, got nil")
@@ -40,7 +40,7 @@ func TestNewJobsCollector(t *testing.T) {
 }
 
 func TestJobsCollector_Describe(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, _, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -48,7 +48,7 @@ func TestJobsCollector_Describe(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewJobsCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	descCh := make(chan *prometheus.Desc, 10)
 	go func() {
@@ -68,7 +68,7 @@ func TestJobsCollector_Describe(t *testing.T) {
 }
 
 func TestJobsCollector_CollectJobRuns(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -83,7 +83,7 @@ func TestJobsCollector_CollectJobRuns(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewJobsCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -116,7 +116,7 @@ func TestJobsCollector_CollectJobRuns(t *testing.T) {
 }
 
 func TestJobsCollector_CollectJobRunStatus(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -142,7 +142,7 @@ func TestJobsCollector_CollectJobRunStatus(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewJobsCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -175,7 +175,7 @@ func TestJobsCollector_CollectJobRunStatus(t *testing.T) {
 }
 
 func TestJobsCollector_CollectJobRunDuration(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -199,7 +199,7 @@ func TestJobsCollector_CollectJobRunDuration(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewJobsCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -232,7 +232,7 @@ func TestJobsCollector_CollectJobRunDuration(t *testing.T) {
 }
 
 func TestJobsCollector_CollectWithError(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -254,7 +254,7 @@ func TestJobsCollector_CollectWithError(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewJobsCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	ch := make(chan prometheus.Metric, 10)
 	go func() {
@@ -275,7 +275,7 @@ func TestJobsCollector_CollectWithError(t *testing.T) {
 }
 
 func TestJobsCollector_CollectTaskRetries(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -300,7 +300,7 @@ func TestJobsCollector_CollectTaskRetries(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewJobsCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	ch := make(chan prometheus.Metric, 10)
 	go func() {
@@ -318,7 +318,7 @@ func TestJobsCollector_CollectTaskRetries(t *testing.T) {
 }
 
 func TestJobsCollector_CollectJobSLAMiss(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -342,7 +342,7 @@ func TestJobsCollector_CollectJobSLAMiss(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewJobsCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Use testutil to count metrics
 	count := testutil.CollectAndCount(collector)

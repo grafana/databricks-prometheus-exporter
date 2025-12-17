@@ -222,12 +222,27 @@ Estimated count of concurrent queries (derived from overlapping execution interv
 - **Type:** Gauge
 - **Labels:** `workspace_id`, `warehouse_id`
 
-## System metrics
+## System and health metrics
 
-### `databricks_up`
+### `databricks_exporter_up`
 Indicates whether the exporter successfully connected to Databricks. Note: This metric indicates exporter health, not Databricks availability. Individual query failures are logged but do not affect this metric.
 
 - **Type:** Gauge
 - **Values:**
   - `1` - Exporter successfully established database connection
   - `0` - Exporter failed to establish database connection
+
+### `databricks_scrape_status`
+Status of individual scrape queries. Provides granular visibility into which system table queries succeeded or failed during each scrape.
+
+- **Type:** Gauge
+- **Labels:** `query` (e.g., `billing_dbus`, `job_runs`, `queries`), `status` (`success` or `error`)
+- **Values:**
+  - `1` - Query completed successfully
+  - `0` - Query failed (timeout, error, or table unavailable)
+
+### `databricks_exporter_info`
+Build and configuration information for the exporter. Useful for tracking deployed versions and configured lookback windows across instances.
+
+- **Type:** Gauge (always 1)
+- **Labels:** `version`, `billing_window`, `jobs_window`, `pipelines_window`, `queries_window`

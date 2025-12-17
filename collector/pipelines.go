@@ -4,18 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 // PipelinesCollector collects pipeline-related metrics from Databricks.
 type PipelinesCollector struct {
-	logger log.Logger
+	logger *slog.Logger
 	db     *sql.DB
 	ctx    context.Context
 	config *Config
@@ -32,7 +31,7 @@ type PipelinesCollector struct {
 }
 
 // NewPipelinesCollector creates a new PipelinesCollector.
-func NewPipelinesCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors, ctx context.Context, config *Config) *PipelinesCollector {
+func NewPipelinesCollector(ctx context.Context, db *sql.DB, metrics *MetricDescriptors, config *Config, logger *slog.Logger) *PipelinesCollector {
 	return &PipelinesCollector{
 		logger:  logger,
 		db:      db,
@@ -54,7 +53,7 @@ func (c *PipelinesCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect fetches metrics from Databricks and sends them to Prometheus.
 func (c *PipelinesCollector) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
-	level.Debug(c.logger).Log("msg", "Collecting pipeline metrics")
+	c.logger.Debug("Collecting pipeline metrics")
 
 	// Check if we should verify table availability
 	if c.shouldCheckTable() {
@@ -63,7 +62,7 @@ func (c *PipelinesCollector) Collect(ch chan<- prometheus.Metric) {
 
 	// Skip collection if table is known to be unavailable
 	if !c.isTableAvailable() {
-		level.Debug(c.logger).Log("msg", "Skipping pipeline metrics collection - table unavailable")
+		c.logger.Debug("Skipping pipeline metrics collection - table unavailable")
 		return
 	}
 
@@ -88,7 +87,7 @@ func (c *PipelinesCollector) Collect(ch chan<- prometheus.Metric) {
 		c.handleCollectionError("pipeline freshness lag", err)
 	}
 
-	level.Debug(c.logger).Log("msg", "Finished collecting pipeline metrics", "duration_seconds", time.Since(start).Seconds())
+	c.logger.Debug("Finished collecting pipeline metrics", "duration_seconds", time.Since(start).Seconds())
 }
 
 // shouldCheckTable determines if we should check table availability.
@@ -158,8 +157,7 @@ func (c *PipelinesCollector) checkTableAvailability() {
 			// Log once when we first discover the table is unavailable
 			if c.tableAvailable != nil && !wasAvailable {
 				c.tableUnavailableOnce.Do(func() {
-					level.Warn(c.logger).Log(
-						"msg", "Pipeline metrics table not available - pipeline metrics will not be collected",
+					c.logger.Warn("Pipeline metrics table not available - pipeline metrics will not be collected",
 						"table", "system.lakeflow.pipeline_update_timeline",
 						"note", "This is expected in some Databricks environments. All other metrics will continue to work normally.",
 						"suggestion", "Contact Databricks Support to enable this table, or see documentation for more information.",
@@ -167,15 +165,13 @@ func (c *PipelinesCollector) checkTableAvailability() {
 				})
 			}
 
-			level.Debug(c.logger).Log(
-				"msg", "Verified table is unavailable",
+			c.logger.Debug("Verified table is unavailable",
 				"table", "system.lakeflow.pipeline_update_timeline",
 				"will_retry_in_scrapes", c.config.TableCheckInterval,
 			)
 		} else {
 			// Some other error - log it and assume unavailable for now
-			level.Debug(c.logger).Log(
-				"msg", "Error checking table availability",
+			c.logger.Debug("Error checking table availability",
 				"table", "system.lakeflow.pipeline_update_timeline",
 				"err", err,
 			)
@@ -190,13 +186,11 @@ func (c *PipelinesCollector) checkTableAvailability() {
 
 		// Log when table becomes available (was previously unavailable)
 		if wasUnavailable {
-			level.Info(c.logger).Log(
-				"msg", "Pipeline metrics table is now available - resuming pipeline metrics collection",
+			c.logger.Info("Pipeline metrics table is now available - resuming pipeline metrics collection",
 				"table", "system.lakeflow.pipeline_update_timeline",
 			)
 		} else {
-			level.Debug(c.logger).Log(
-				"msg", "Verified table is available",
+			c.logger.Debug("Verified table is available",
 				"table", "system.lakeflow.pipeline_update_timeline",
 			)
 		}
@@ -218,14 +212,12 @@ func (c *PipelinesCollector) handleCollectionError(metricName string, err error)
 		c.tableAvailable = &available
 		c.mu.Unlock()
 
-		level.Debug(c.logger).Log(
-			"msg", "Table became unavailable during collection",
+		c.logger.Debug("Table became unavailable during collection",
 			"metric", metricName,
 		)
 	} else {
 		// Some other error - log it
-		level.Error(c.logger).Log(
-			"msg", "Failed to collect pipeline metric",
+		c.logger.Error("Failed to collect pipeline metric",
 			"metric", metricName,
 			"err", err,
 		)

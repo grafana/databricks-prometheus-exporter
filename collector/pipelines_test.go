@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/prometheus/common/promslog"
 )
 
 func TestNewPipelinesCollector(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, _, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -20,7 +20,7 @@ func TestNewPipelinesCollector(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	if collector == nil {
 		t.Fatal("expected collector to be created, got nil")
@@ -40,7 +40,7 @@ func TestNewPipelinesCollector(t *testing.T) {
 }
 
 func TestPipelinesCollector_Describe(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, _, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -48,7 +48,7 @@ func TestPipelinesCollector_Describe(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	descCh := make(chan *prometheus.Desc, 10)
 	go func() {
@@ -68,7 +68,7 @@ func TestPipelinesCollector_Describe(t *testing.T) {
 }
 
 func TestPipelinesCollector_CollectPipelineRuns(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -87,7 +87,7 @@ func TestPipelinesCollector_CollectPipelineRuns(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -120,7 +120,7 @@ func TestPipelinesCollector_CollectPipelineRuns(t *testing.T) {
 }
 
 func TestPipelinesCollector_CollectPipelineRunStatus(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -150,7 +150,7 @@ func TestPipelinesCollector_CollectPipelineRunStatus(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -183,7 +183,7 @@ func TestPipelinesCollector_CollectPipelineRunStatus(t *testing.T) {
 }
 
 func TestPipelinesCollector_CollectPipelineRunDuration(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -211,7 +211,7 @@ func TestPipelinesCollector_CollectPipelineRunDuration(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -244,7 +244,7 @@ func TestPipelinesCollector_CollectPipelineRunDuration(t *testing.T) {
 }
 
 func TestPipelinesCollector_CollectWithError(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -270,7 +270,7 @@ func TestPipelinesCollector_CollectWithError(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	ch := make(chan prometheus.Metric, 10)
 	go func() {
@@ -291,7 +291,7 @@ func TestPipelinesCollector_CollectWithError(t *testing.T) {
 }
 
 func TestPipelinesCollector_CollectRetryEvents(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -320,7 +320,7 @@ func TestPipelinesCollector_CollectRetryEvents(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	ch := make(chan prometheus.Metric, 10)
 	go func() {
@@ -338,7 +338,7 @@ func TestPipelinesCollector_CollectRetryEvents(t *testing.T) {
 }
 
 func TestPipelinesCollector_CollectFreshnessLag(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -367,7 +367,7 @@ func TestPipelinesCollector_CollectFreshnessLag(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	collector := NewPipelinesCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Use testutil to count metrics
 	count := testutil.CollectAndCount(collector)

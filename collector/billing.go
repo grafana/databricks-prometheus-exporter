@@ -4,11 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -16,13 +15,13 @@ import (
 type BillingCollector struct {
 	db      *sql.DB
 	metrics *MetricDescriptors
-	logger  log.Logger
+	logger  *slog.Logger
 	ctx     context.Context
 	config  *Config
 }
 
 // NewBillingCollector creates a new billing metrics collector.
-func NewBillingCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors, ctx context.Context, config *Config) *BillingCollector {
+func NewBillingCollector(ctx context.Context, db *sql.DB, metrics *MetricDescriptors, config *Config, logger *slog.Logger) *BillingCollector {
 	return &BillingCollector{
 		logger:  logger,
 		db:      db,
@@ -36,7 +35,7 @@ func NewBillingCollector(logger log.Logger, db *sql.DB, metrics *MetricDescripto
 // Queries run in parallel to reduce total scrape time (cost estimate query can take ~100s).
 func (c *BillingCollector) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
-	level.Debug(c.logger).Log("msg", "Collecting billing metrics")
+	c.logger.Debug("Collecting billing metrics")
 
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -44,7 +43,7 @@ func (c *BillingCollector) Collect(ch chan<- prometheus.Metric) {
 	go func() {
 		defer wg.Done()
 		if err := c.collectBillingDBUs(ch); err != nil {
-			level.Error(c.logger).Log("msg", "Failed to collect billing DBUs", "err", err)
+			c.logger.Error("Failed to collect billing DBUs", "err", err)
 			c.emitError(ch, "billing_dbus")
 		}
 	}()
@@ -52,7 +51,7 @@ func (c *BillingCollector) Collect(ch chan<- prometheus.Metric) {
 	go func() {
 		defer wg.Done()
 		if err := c.collectBillingCost(ch); err != nil {
-			level.Error(c.logger).Log("msg", "Failed to collect billing cost estimates", "err", err)
+			c.logger.Error("Failed to collect billing cost estimates", "err", err)
 			c.emitError(ch, "billing_cost")
 		}
 	}()
@@ -60,18 +59,18 @@ func (c *BillingCollector) Collect(ch chan<- prometheus.Metric) {
 	go func() {
 		defer wg.Done()
 		if err := c.collectPriceChangeEvents(ch); err != nil {
-			level.Error(c.logger).Log("msg", "Failed to collect price change events", "err", err)
+			c.logger.Error("Failed to collect price change events", "err", err)
 			c.emitError(ch, "price_changes")
 		}
 	}()
 
 	wg.Wait()
-	level.Debug(c.logger).Log("msg", "Finished collecting billing metrics", "duration_seconds", time.Since(start).Seconds())
+	c.logger.Debug("Finished collecting billing metrics", "duration_seconds", time.Since(start).Seconds())
 }
 
 // collectBillingDBUs retrieves total DBU consumption per workspace and SKU.
 func (c *BillingCollector) collectBillingDBUs(ch chan<- prometheus.Metric) error {
-	level.Debug(c.logger).Log("msg", "Querying billing DBUs")
+	c.logger.Debug("Querying billing DBUs")
 
 	lookback := c.config.BillingLookback
 	if lookback == 0 {
@@ -90,13 +89,13 @@ func (c *BillingCollector) collectBillingDBUs(ch chan<- prometheus.Metric) error
 		var dbusTotal float64
 
 		if err := rows.Scan(&workspaceID, &skuName, &dbusTotal); err != nil {
-			level.Error(c.logger).Log("msg", "Failed to scan billing DBUs row", "err", err)
+			c.logger.Error("Failed to scan billing DBUs row", "err", err)
 			continue
 		}
 
 		// Skip rows with NULL workspace_id or sku_name (invalid data)
 		if !workspaceID.Valid || !skuName.Valid {
-			level.Debug(c.logger).Log("msg", "Skipping billing DBU row with NULL workspace_id or sku_name")
+			c.logger.Debug("Skipping billing DBU row with NULL workspace_id or sku_name")
 			continue
 		}
 
@@ -110,13 +109,13 @@ func (c *BillingCollector) collectBillingDBUs(ch chan<- prometheus.Metric) error
 		count++
 	}
 
-	level.Debug(c.logger).Log("msg", "Collected billing DBUs", "count", count)
+	c.logger.Debug("Collected billing DBUs", "count", count)
 	return rows.Err()
 }
 
 // collectBillingCost retrieves total cost estimates by joining usage with prices.
 func (c *BillingCollector) collectBillingCost(ch chan<- prometheus.Metric) error {
-	level.Debug(c.logger).Log("msg", "Querying billing cost estimates")
+	c.logger.Debug("Querying billing cost estimates")
 
 	lookback := c.config.BillingLookback
 	if lookback == 0 {
@@ -135,13 +134,13 @@ func (c *BillingCollector) collectBillingCost(ch chan<- prometheus.Metric) error
 		var costEstimateUSD float64
 
 		if err := rows.Scan(&workspaceID, &skuName, &costEstimateUSD); err != nil {
-			level.Error(c.logger).Log("msg", "Failed to scan billing cost row", "err", err)
+			c.logger.Error("Failed to scan billing cost row", "err", err)
 			continue
 		}
 
 		// Skip rows with NULL workspace_id or sku_name (invalid data)
 		if !workspaceID.Valid || !skuName.Valid {
-			level.Debug(c.logger).Log("msg", "Skipping billing cost row with NULL workspace_id or sku_name")
+			c.logger.Debug("Skipping billing cost row with NULL workspace_id or sku_name")
 			continue
 		}
 
@@ -155,13 +154,13 @@ func (c *BillingCollector) collectBillingCost(ch chan<- prometheus.Metric) error
 		count++
 	}
 
-	level.Debug(c.logger).Log("msg", "Collected billing cost estimates", "count", count)
+	c.logger.Debug("Collected billing cost estimates", "count", count)
 	return rows.Err()
 }
 
 // collectPriceChangeEvents tracks price changes from the list_prices table.
 func (c *BillingCollector) collectPriceChangeEvents(ch chan<- prometheus.Metric) error {
-	level.Debug(c.logger).Log("msg", "Querying price change events")
+	c.logger.Debug("Querying price change events")
 
 	lookback := c.config.BillingLookback
 	if lookback == 0 {
@@ -180,13 +179,13 @@ func (c *BillingCollector) collectPriceChangeEvents(ch chan<- prometheus.Metric)
 		var priceChangeCount float64
 
 		if err := rows.Scan(&skuName, &priceChangeCount); err != nil {
-			level.Error(c.logger).Log("msg", "Failed to scan price change row", "err", err)
+			c.logger.Error("Failed to scan price change row", "err", err)
 			continue
 		}
 
 		// Skip rows with NULL sku_name (invalid data)
 		if !skuName.Valid {
-			level.Debug(c.logger).Log("msg", "Skipping price change row with NULL sku_name")
+			c.logger.Debug("Skipping price change row with NULL sku_name")
 			continue
 		}
 
@@ -199,7 +198,7 @@ func (c *BillingCollector) collectPriceChangeEvents(ch chan<- prometheus.Metric)
 		count++
 	}
 
-	level.Debug(c.logger).Log("msg", "Collected price change events", "count", count)
+	c.logger.Debug("Collected price change events", "count", count)
 	return rows.Err()
 }
 

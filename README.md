@@ -212,7 +212,7 @@ This means your Databricks account has run out of credits. Add a payment method 
 
 ### No Metrics Appearing
 
-If `databricks_up` is 1 but some metrics don't appear:
+If `databricks_exporter_up` is 1 but some metrics don't appear:
 - Some metrics only appear when there's data to report (e.g., no retries means no retry metric)
 - Billing metrics require recent usage data (check the last 30 days)
 - Job and pipeline metrics require recent executions (check the last 24 hours)

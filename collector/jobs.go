@@ -4,16 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 // JobsCollector collects job-related metrics from Databricks.
 type JobsCollector struct {
-	logger log.Logger
+	logger *slog.Logger
 	db     *sql.DB
 	ctx    context.Context
 	config *Config
@@ -22,7 +21,7 @@ type JobsCollector struct {
 }
 
 // NewJobsCollector creates a new JobsCollector.
-func NewJobsCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors, ctx context.Context, config *Config) *JobsCollector {
+func NewJobsCollector(ctx context.Context, db *sql.DB, metrics *MetricDescriptors, config *Config, logger *slog.Logger) *JobsCollector {
 	return &JobsCollector{
 		logger:  logger,
 		db:      db,
@@ -44,29 +43,29 @@ func (c *JobsCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect fetches metrics from Databricks and sends them to Prometheus.
 func (c *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
-	level.Debug(c.logger).Log("msg", "Collecting job metrics")
+	c.logger.Debug("Collecting job metrics")
 
 	if err := c.collectJobRuns(ch); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect job runs", "err", err)
+		c.logger.Error("Failed to collect job runs", "err", err)
 	}
 
 	if err := c.collectJobRunStatus(ch); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect job run status", "err", err)
+		c.logger.Error("Failed to collect job run status", "err", err)
 	}
 
 	if err := c.collectJobRunDuration(ch); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect job run duration", "err", err)
+		c.logger.Error("Failed to collect job run duration", "err", err)
 	}
 
 	if err := c.collectTaskRetries(ch); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect task retries", "err", err)
+		c.logger.Error("Failed to collect task retries", "err", err)
 	}
 
 	if err := c.collectJobSLAMiss(ch); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect job SLA misses", "err", err)
+		c.logger.Error("Failed to collect job SLA misses", "err", err)
 	}
 
-	level.Debug(c.logger).Log("msg", "Finished collecting job metrics", "duration_seconds", time.Since(start).Seconds())
+	c.logger.Debug("Finished collecting job metrics", "duration_seconds", time.Since(start).Seconds())
 }
 
 // collectJobRuns collects the total number of job runs per job.

@@ -114,11 +114,16 @@ func TestNewMetricDescriptors(t *testing.T) {
 			desc:   metrics.QueriesRunning,
 			labels: []string{labelWorkspaceID, labelWarehouseID},
 		},
-		// Health metric
+		// Health metrics
 		{
-			name:   "Up",
-			desc:   metrics.Up,
+			name:   "ExporterUp",
+			desc:   metrics.ExporterUp,
 			labels: nil,
+		},
+		{
+			name:   "ScrapeStatus",
+			desc:   metrics.ScrapeStatus,
+			labels: []string{labelQuery, labelStatus},
 		},
 	}
 
@@ -160,13 +165,13 @@ func TestMetricDescriptors_Describe(t *testing.T) {
 		count++
 	}
 
-	// We expect 19 metrics:
+	// We expect 20 metrics:
 	// - 4 billing metrics
 	// - 5 jobs metrics
 	// - 5 pipelines metrics
 	// - 4 SQL warehouse metrics
-	// - 1 up metric
-	expectedCount := 19
+	// - 2 health metrics (exporter_up, scrape_status)
+	expectedCount := 21
 	if count != expectedCount {
 		t.Errorf("Expected %d metric descriptors, got %d", expectedCount, count)
 	}
@@ -197,7 +202,8 @@ func TestMetricDescriptors_AllMetricsHaveDescriptions(t *testing.T) {
 		{"QueryDurationSeconds", metrics.QueryDurationSeconds},
 		{"QueryErrorsTotal", metrics.QueryErrorsTotal},
 		{"QueriesRunning", metrics.QueriesRunning},
-		{"Up", metrics.Up},
+		{"ExporterUp", metrics.ExporterUp},
+		{"ScrapeStatus", metrics.ScrapeStatus},
 	}
 
 	for _, tt := range tests {

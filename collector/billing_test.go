@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/promslog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,9 +19,9 @@ func TestBillingCollector_Initialization(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 
-	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewBillingCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	require.NotNil(t, collector, "NewBillingCollector returned nil")
 	assert.Equal(t, db, collector.db, "db not set correctly")
@@ -43,8 +43,8 @@ func TestBillingCollector_CollectBillingDBUs(t *testing.T) {
 		WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	logger := log.NewNopLogger()
-	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	logger := promslog.NewNopLogger()
+	collector := NewBillingCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Collect metrics
 	ch := make(chan prometheus.Metric, 10)
@@ -100,8 +100,8 @@ func TestBillingCollector_CollectBillingCost(t *testing.T) {
 		WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	logger := log.NewNopLogger()
-	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	logger := promslog.NewNopLogger()
+	collector := NewBillingCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Collect metrics
 	ch := make(chan prometheus.Metric, 10)
@@ -158,8 +158,8 @@ func TestBillingCollector_CollectPriceChangeEvents(t *testing.T) {
 		WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	logger := log.NewNopLogger()
-	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	logger := promslog.NewNopLogger()
+	collector := NewBillingCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Collect metrics
 	ch := make(chan prometheus.Metric, 10)
@@ -216,8 +216,8 @@ func TestBillingCollector_CollectWithError(t *testing.T) {
 		WillReturnError(sql.ErrConnDone)
 
 	metrics := NewMetricDescriptors()
-	logger := log.NewNopLogger()
-	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	logger := promslog.NewNopLogger()
+	collector := NewBillingCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Collect metrics
 	ch := make(chan prometheus.Metric, 10)
@@ -243,8 +243,8 @@ func TestBillingCollector_CollectEmitsErrorMetric(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	logger := log.NewNopLogger()
-	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	logger := promslog.NewNopLogger()
+	collector := NewBillingCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Test error emission
 	ch := make(chan prometheus.Metric, 1)
@@ -313,8 +313,8 @@ func TestBillingCollector_CollectContinuesOnPartialFailure(t *testing.T) {
 		WillReturnRows(priceRows)
 
 	metrics := NewMetricDescriptors()
-	logger := log.NewNopLogger()
-	collector := NewBillingCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	logger := promslog.NewNopLogger()
+	collector := NewBillingCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Collect all metrics - should continue despite first failure
 	ch := make(chan prometheus.Metric, 20)

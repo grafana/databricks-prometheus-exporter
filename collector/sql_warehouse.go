@@ -4,16 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 // SQLWarehouseCollector collects SQL warehouse-related metrics from Databricks.
 type SQLWarehouseCollector struct {
-	logger log.Logger
+	logger *slog.Logger
 	db     *sql.DB
 	ctx    context.Context
 	config *Config
@@ -23,7 +22,7 @@ type SQLWarehouseCollector struct {
 }
 
 // NewSQLWarehouseCollector creates a new SQLWarehouseCollector.
-func NewSQLWarehouseCollector(logger log.Logger, db *sql.DB, metrics *MetricDescriptors, ctx context.Context, config *Config) *SQLWarehouseCollector {
+func NewSQLWarehouseCollector(ctx context.Context, db *sql.DB, metrics *MetricDescriptors, config *Config, logger *slog.Logger) *SQLWarehouseCollector {
 	return &SQLWarehouseCollector{
 		logger:  logger,
 		db:      db,
@@ -44,26 +43,26 @@ func (c *SQLWarehouseCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect fetches metrics from Databricks and sends them to Prometheus.
 func (c *SQLWarehouseCollector) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
-	level.Debug(c.logger).Log("msg", "Collecting SQL warehouse metrics")
+	c.logger.Debug("Collecting SQL warehouse metrics")
 
 	// Collect each metric, but continue on errors
 	if err := c.collectQueries(ch); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect queries", "err", err)
+		c.logger.Error("Failed to collect queries", "err", err)
 	}
 
 	if err := c.collectQueryErrors(ch); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect query errors", "err", err)
+		c.logger.Error("Failed to collect query errors", "err", err)
 	}
 
 	if err := c.collectQueryDuration(ch); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect query duration", "err", err)
+		c.logger.Error("Failed to collect query duration", "err", err)
 	}
 
 	if err := c.collectQueriesRunning(ch); err != nil {
-		level.Error(c.logger).Log("msg", "Failed to collect running queries", "err", err)
+		c.logger.Error("Failed to collect running queries", "err", err)
 	}
 
-	level.Debug(c.logger).Log("msg", "Finished collecting SQL warehouse metrics", "duration_seconds", time.Since(start).Seconds())
+	c.logger.Debug("Finished collecting SQL warehouse metrics", "duration_seconds", time.Since(start).Seconds())
 }
 
 // collectQueries collects the total number of queries executed per warehouse.

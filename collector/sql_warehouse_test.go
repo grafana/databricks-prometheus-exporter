@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/prometheus/common/promslog"
 )
 
 func TestNewSQLWarehouseCollector(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, _, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -20,7 +20,7 @@ func TestNewSQLWarehouseCollector(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewSQLWarehouseCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	if collector == nil {
 		t.Fatal("expected collector to be created, got nil")
@@ -40,7 +40,7 @@ func TestNewSQLWarehouseCollector(t *testing.T) {
 }
 
 func TestSQLWarehouseCollector_Describe(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, _, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -48,7 +48,7 @@ func TestSQLWarehouseCollector_Describe(t *testing.T) {
 	defer db.Close()
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewSQLWarehouseCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	descCh := make(chan *prometheus.Desc, 10)
 	go func() {
@@ -68,7 +68,7 @@ func TestSQLWarehouseCollector_Describe(t *testing.T) {
 }
 
 func TestSQLWarehouseCollector_CollectQueries(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -83,7 +83,7 @@ func TestSQLWarehouseCollector_CollectQueries(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.query.history").WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewSQLWarehouseCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -116,7 +116,7 @@ func TestSQLWarehouseCollector_CollectQueries(t *testing.T) {
 }
 
 func TestSQLWarehouseCollector_CollectQueryErrors(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -139,7 +139,7 @@ func TestSQLWarehouseCollector_CollectQueryErrors(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "warehouse_id", "max_concurrent"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewSQLWarehouseCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -172,7 +172,7 @@ func TestSQLWarehouseCollector_CollectQueryErrors(t *testing.T) {
 }
 
 func TestSQLWarehouseCollector_CollectQueryDuration(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -194,7 +194,7 @@ func TestSQLWarehouseCollector_CollectQueryDuration(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "warehouse_id", "max_concurrent"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewSQLWarehouseCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Create a registry and register the collector
 	registry := prometheus.NewRegistry()
@@ -227,7 +227,7 @@ func TestSQLWarehouseCollector_CollectQueryDuration(t *testing.T) {
 }
 
 func TestSQLWarehouseCollector_CollectWithError(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -247,7 +247,7 @@ func TestSQLWarehouseCollector_CollectWithError(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "warehouse_id", "max_concurrent"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewSQLWarehouseCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	ch := make(chan prometheus.Metric, 10)
 	go func() {
@@ -268,7 +268,7 @@ func TestSQLWarehouseCollector_CollectWithError(t *testing.T) {
 }
 
 func TestSQLWarehouseCollector_CollectQueriesRunning(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
@@ -290,7 +290,7 @@ func TestSQLWarehouseCollector_CollectQueriesRunning(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.query.history").WillReturnRows(rows)
 
 	metrics := NewMetricDescriptors()
-	collector := NewSQLWarehouseCollector(logger, db, metrics, context.Background(), DefaultConfig())
+	collector := NewSQLWarehouseCollector(context.Background(), db, metrics, DefaultConfig(), logger)
 
 	// Use testutil to count metrics
 	count := testutil.CollectAndCount(collector)

@@ -5,12 +5,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/promslog"
 )
 
 func TestNewCollector(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	config := &Config{
 		ServerHostname:    "test.databricks.com",
 		WarehouseHTTPPath: "/sql/1.0/warehouses/test",
@@ -42,7 +42,7 @@ func TestNewCollector(t *testing.T) {
 }
 
 func TestCollectorDescribe(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	config := &Config{
 		ServerHostname:    "test.databricks.com",
 		WarehouseHTTPPath: "/sql/1.0/warehouses/test",
@@ -63,15 +63,15 @@ func TestCollectorDescribe(t *testing.T) {
 		descriptions = append(descriptions, desc)
 	}
 
-	// Should have all 19 metrics
-	expectedCount := 19
+	// Should have all 20 metrics
+	expectedCount := 21
 	if len(descriptions) != expectedCount {
 		t.Errorf("expected %d metric descriptions, got %d", expectedCount, len(descriptions))
 	}
 }
 
 func TestCollectorCollect_DatabaseConnectionFailure(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	config := &Config{
 		ServerHostname:    "test.databricks.com",
 		WarehouseHTTPPath: "/sql/1.0/warehouses/test",
@@ -95,11 +95,11 @@ func TestCollectorCollect_DatabaseConnectionFailure(t *testing.T) {
 		t.Fatalf("failed to gather metrics: %v", err)
 	}
 
-	// Find the up metric
+	// Find the exporter_up metric
 	var upValue float64
 	found := false
 	for _, mf := range metricFamilies {
-		if *mf.Name == "databricks_up" {
+		if *mf.Name == "databricks_exporter_up" {
 			if len(mf.Metric) > 0 {
 				upValue = *mf.Metric[0].Gauge.Value
 				found = true
@@ -109,16 +109,16 @@ func TestCollectorCollect_DatabaseConnectionFailure(t *testing.T) {
 	}
 
 	if !found {
-		t.Fatal("up metric not found")
+		t.Fatal("exporter_up metric not found")
 	}
 
 	if upValue != 0 {
-		t.Errorf("expected up metric to be 0, got %f", upValue)
+		t.Errorf("expected exporter_up metric to be 0, got %f", upValue)
 	}
 }
 
 func TestCollectorMetricNames(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	config := &Config{
 		ServerHostname:    "test.databricks.com",
 		WarehouseHTTPPath: "/sql/1.0/warehouses/test",
@@ -134,7 +134,7 @@ func TestCollectorMetricNames(t *testing.T) {
 	}
 
 	// Check that metric descriptors have correct names
-	expectedUpName := "databricks_up"
+	expectedUpName := "databricks_exporter_up"
 
 	// Create a temporary registry to extract metric info
 	registry := prometheus.NewRegistry()

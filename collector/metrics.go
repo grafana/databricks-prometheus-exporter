@@ -31,7 +31,13 @@ type MetricDescriptors struct {
 	QueriesRunning       *prometheus.Desc
 
 	// Exporter health
-	Up *prometheus.Desc
+	ExporterUp *prometheus.Desc
+
+	// Scrape status (per-query health)
+	ScrapeStatus *prometheus.Desc
+
+	// Exporter info (version and configuration)
+	ExporterInfo *prometheus.Desc
 }
 
 // NewMetricDescriptors creates and returns all metric descriptors for the Databricks exporter.
@@ -41,21 +47,21 @@ func NewMetricDescriptors() *MetricDescriptors {
 
 		BillingDBUsTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "billing", "dbus_total"),
-			"Daily Databricks Units (DBUs) consumed per workspace and SKU.",
+			"Databricks Units (DBUs) consumed per workspace and SKU (sliding window, configurable via --billing-lookback, default: 24h).",
 			[]string{labelWorkspaceID, labelSKUName},
 			nil,
 		),
 
 		BillingCostEstimateUSD: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "billing", "cost_estimate_usd"),
-			"Daily list-price cost estimate (DBUs × list price) per workspace and SKU.",
+			"List-price cost estimate (DBUs × list price) per workspace and SKU (sliding window, configurable via --billing-lookback, default: 24h).",
 			[]string{labelWorkspaceID, labelSKUName},
 			nil,
 		),
 
 		PriceChangeEvents: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "price_change_events"),
-			"Count of pricing changes for a SKU from historical list prices.",
+			"Pricing changes for a SKU (sliding window, configurable via --billing-lookback, default: 24h).",
 			[]string{labelSKUName},
 			nil,
 		),
@@ -71,35 +77,35 @@ func NewMetricDescriptors() *MetricDescriptors {
 
 		JobRunsTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "job_runs_total"),
-			"Number of Lakeflow Jobs runs per workspace and job.",
+			"Lakeflow Jobs runs per workspace and job (sliding window, configurable via --jobs-lookback, default: 2h).",
 			[]string{labelWorkspaceID, labelJobID, labelJobName},
 			nil,
 		),
 
 		JobRunStatusTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "job_run_status_total"),
-			"Job status counts (SUCCEEDED/FAILED/CANCELED) per workspace and job.",
+			"Job status counts (SUCCEEDED/FAILED/CANCELED) per workspace and job (sliding window, configurable via --jobs-lookback, default: 2h).",
 			[]string{labelWorkspaceID, labelJobID, labelJobName, labelStatus},
 			nil,
 		),
 
 		JobRunDurationSeconds: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "job_run_duration_seconds"),
-			"Job run duration quantiles (p50/p95/p99) per workspace and job.",
+			"Job run duration quantiles (p50/p95/p99) per workspace and job (sliding window, configurable via --jobs-lookback, default: 2h).",
 			[]string{labelWorkspaceID, labelJobID, labelJobName, labelQuantile},
 			nil,
 		),
 
 		TaskRetriesTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "task_retries_total"),
-			"Number of retries across job tasks per workspace, job, and task key.",
+			"Retries across job tasks per workspace, job, and task key (sliding window, configurable via --jobs-lookback, default: 2h).",
 			[]string{labelWorkspaceID, labelJobID, labelJobName, labelTaskKey},
 			nil,
 		),
 
 		JobSLAMissTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "job_sla_miss_total"),
-			"Job runs exceeding configured SLA threshold per workspace and job.",
+			"Job runs exceeding SLA threshold (configurable via --sla-threshold) per workspace and job (sliding window, configurable via --jobs-lookback, default: 2h).",
 			[]string{labelWorkspaceID, labelJobID, labelJobName},
 			nil,
 		),
@@ -108,35 +114,35 @@ func NewMetricDescriptors() *MetricDescriptors {
 
 		PipelineRunsTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "pipeline_runs_total"),
-			"DLT / Lakeflow Pipelines executions per workspace and pipeline.",
+			"DLT / Lakeflow Pipelines executions per workspace and pipeline (sliding window, configurable via --pipelines-lookback, default: 2h).",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName},
 			nil,
 		),
 
 		PipelineRunStatusTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "pipeline_run_status_total"),
-			"Pipeline run status counts (COMPLETED/FAILED) per workspace and pipeline.",
+			"Pipeline run status counts (COMPLETED/FAILED) per workspace and pipeline (sliding window, configurable via --pipelines-lookback, default: 2h).",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName, labelStatus},
 			nil,
 		),
 
 		PipelineRunDurationSeconds: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "pipeline_run_duration_seconds"),
-			"Pipeline run duration quantiles (p50/p95/p99) per workspace and pipeline.",
+			"Pipeline run duration quantiles (p50/p95/p99) per workspace and pipeline (sliding window, configurable via --pipelines-lookback, default: 2h).",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName, labelQuantile},
 			nil,
 		),
 
 		PipelineRetryEventsTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "pipeline_retry_events_total"),
-			"Retry/backoff events within pipeline updates per workspace and pipeline.",
+			"Retry/backoff events within pipeline updates per workspace and pipeline (sliding window, configurable via --pipelines-lookback, default: 2h).",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName},
 			nil,
 		),
 
 		PipelineFreshnessLagSeconds: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "pipeline_freshness_lag_seconds"),
-			"Data freshness lag vs target watermark per workspace and pipeline.",
+			"Data freshness lag vs target watermark per workspace and pipeline (point-in-time, derived from latest pipeline runs within lookback window).",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName},
 			nil,
 		),
@@ -145,41 +151,55 @@ func NewMetricDescriptors() *MetricDescriptors {
 
 		QueriesTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "queries_total"),
-			"SQL queries executed (warehouse & serverless) per workspace and warehouse.",
+			"SQL queries executed (warehouse & serverless) per workspace and warehouse (sliding window, configurable via --queries-lookback, default: 1h).",
 			[]string{labelWorkspaceID, labelWarehouseID},
 			nil,
 		),
 
 		QueryDurationSeconds: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "query_duration_seconds"),
-			"Query latency quantiles (p50/p95/p99) per workspace and warehouse.",
+			"Query latency quantiles (p50/p95/p99) per workspace and warehouse (sliding window, configurable via --queries-lookback, default: 1h).",
 			[]string{labelWorkspaceID, labelWarehouseID, labelQuantile},
 			nil,
 		),
 
 		QueryErrorsTotal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "query_errors_total"),
-			"Failed queries count per workspace and warehouse.",
+			"Failed queries per workspace and warehouse (sliding window, configurable via --queries-lookback, default: 1h).",
 			[]string{labelWorkspaceID, labelWarehouseID},
 			nil,
 		),
 
 		QueriesRunning: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "queries_running"),
-			"Concurrent/running queries per workspace and warehouse (derived from overlapping intervals).",
+			"Concurrent/running queries per workspace and warehouse (derived from overlapping intervals within lookback window).",
 			[]string{labelWorkspaceID, labelWarehouseID},
 			nil,
 		),
 
 		// ===== Exporter Health =====
 
-		Up: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "up"),
-			"Metric indicating whether the exporter successfully connected to Databricks. "+
-				"1 indicates successful database connection. "+
-				"0 indicates failure to establish database connection. "+
-				"Note: This metric is emitted early in the scrape cycle; individual query failures are logged but do not affect this metric.",
+		ExporterUp: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "exporter_up"),
+			"Whether the exporter successfully connected to Databricks. "+
+				"1 = connection established, 0 = connection failed. "+
+				"Note: Individual query failures do not affect this metric.",
 			nil,
+			nil,
+		),
+
+		ScrapeStatus: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "scrape_status"),
+			"Status of individual scrape queries. "+
+				"1 = success, 0 = failure (timeout, error, or table unavailable).",
+			[]string{labelQuery, labelStatus},
+			nil,
+		),
+
+		ExporterInfo: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "exporter_info"),
+			"Build and configuration information for the exporter.",
+			[]string{"version", "billing_window", "jobs_window", "pipelines_window", "queries_window"},
 			nil,
 		),
 	}
@@ -215,5 +235,7 @@ func (m *MetricDescriptors) Describe(ch chan<- *prometheus.Desc) {
 	ch <- m.QueriesRunning
 
 	// Health
-	ch <- m.Up
+	ch <- m.ExporterUp
+	ch <- m.ScrapeStatus
+	ch <- m.ExporterInfo
 }

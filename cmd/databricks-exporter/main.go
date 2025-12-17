@@ -7,13 +7,11 @@ import (
 	"os"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/grafana/databricks-prometheus-exporter/collector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/promlog"
-	"github.com/prometheus/common/promlog/flag"
+	"github.com/prometheus/common/promslog"
+	"github.com/prometheus/common/promslog/flag"
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
@@ -61,16 +59,17 @@ const (
 func main() {
 	kingpin.Version(version.Print(exporterName))
 
-	promlogConfig := &promlog.Config{}
+	promslogConfig := &promslog.Config{}
 
-	flag.AddFlags(kingpin.CommandLine, promlogConfig)
+	flag.AddFlags(kingpin.CommandLine, promslogConfig)
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	logger := promlog.New(promlogConfig)
+	logger := promslog.New(promslogConfig)
 
 	// Construct the collector, using the flags for configuration
 	c := &collector.Config{
+		Version:           version.Version,
 		ServerHostname:    *serverHostname,
 		WarehouseHTTPPath: *warehouseHTTPPath,
 		ClientID:          *clientID,
@@ -94,12 +93,12 @@ func main() {
 	}
 
 	if err := c.Validate(); err != nil {
-		level.Error(logger).Log("msg", "Configuration is invalid.", "err", err)
+		logger.Error("Configuration is invalid.", "err", err)
 		os.Exit(1)
 	}
 
 	// Add component prefix to logger for better log correlation
-	collectorLogger := log.With(logger, "component", "databricks-exporter")
+	collectorLogger := logger.With("component", "databricks-exporter")
 	col := collector.NewCollector(collectorLogger, c)
 
 	// Register collector with prometheus client library
@@ -108,21 +107,20 @@ func main() {
 	serveMetrics(logger)
 }
 
-func serveMetrics(logger log.Logger) {
+func serveMetrics(logger *slog.Logger) {
 	landingPage := []byte(fmt.Sprintf(landingPageHTML, *metricPath))
 
 	http.Handle(*metricPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		if _, err := w.Write(landingPage); err != nil {
-			level.Error(logger).Log("msg", "Failed to write landing page", "err", err)
+			logger.Error("Failed to write landing page", "err", err)
 		}
 	})
 
 	srv := &http.Server{}
-	slogger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	if err := web.ListenAndServe(srv, webConfig, slogger); err != nil {
-		level.Error(logger).Log("msg", "Error running HTTP server", "err", err)
+	if err := web.ListenAndServe(srv, webConfig, logger); err != nil {
+		logger.Error("Error running HTTP server", "err", err)
 		os.Exit(1)
 	}
 }

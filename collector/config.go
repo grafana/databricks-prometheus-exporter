@@ -23,6 +23,9 @@ const (
 
 // Config holds the configuration for the Databricks exporter.
 type Config struct {
+	// Exporter metadata
+	Version string // Exporter version for info metric
+
 	// Connection settings
 	ServerHostname    string
 	WarehouseHTTPPath string
@@ -59,6 +62,7 @@ var (
 // Useful for tests that don't need specific config values.
 func DefaultConfig() *Config {
 	return &Config{
+		Version:             "unknown", // Set by main.go from build info
 		QueryTimeout:        DefaultQueryTimeout,
 		BillingLookback:     DefaultBillingLookback,
 		JobsLookback:        DefaultJobsLookback,

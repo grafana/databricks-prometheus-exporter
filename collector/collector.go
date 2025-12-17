@@ -4,13 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
 	dbsql "github.com/databricks/databricks-sql-go"
 	"github.com/databricks/databricks-sql-go/auth/oauth/m2m"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -31,6 +30,9 @@ const (
 	labelPipelineName = "pipeline_name"
 	labelTaskKey      = "task_key"
 	labelWarehouseID  = "warehouse_id"
+
+	// Scrape status labels
+	labelQuery = "query"
 )
 
 // openDatabricksDatabase opens a connection to a Databricks SQL Warehouse using OAuth2 M2M authentication.
@@ -68,7 +70,7 @@ func openDatabricksDatabase(config *Config) (*sql.DB, error) {
 // It orchestrates multiple specialized collectors for different metric categories.
 type Collector struct {
 	config       *Config
-	logger       log.Logger
+	logger       *slog.Logger
 	openDatabase func(*Config) (*sql.DB, error) // For mocking
 	metrics      *MetricDescriptors
 
@@ -79,7 +81,7 @@ type Collector struct {
 
 // NewCollector creates a new collector from a given config.
 // The config is assumed to be valid.
-func NewCollector(logger log.Logger, c *Config) *Collector {
+func NewCollector(logger *slog.Logger, c *Config) *Collector {
 	metrics := NewMetricDescriptors()
 
 	return &Collector{
@@ -104,7 +106,7 @@ func (c *Collector) getDB() (*sql.DB, error) {
 		if err := db.PingContext(ctx); err == nil {
 			return db, nil
 		}
-		level.Warn(c.logger).Log("msg", "Existing connection unhealthy, reconnecting", "err", "ping failed")
+		c.logger.Warn("Existing connection unhealthy, reconnecting", "err", "ping failed")
 	}
 
 	// Need to create or recreate connection
@@ -130,7 +132,7 @@ func (c *Collector) getDB() (*sql.DB, error) {
 	}
 
 	c.db = db
-	level.Debug(c.logger).Log("msg", "Created new database connection pool")
+	c.logger.Debug("Created new database connection pool")
 	return db, nil
 }
 
@@ -142,20 +144,32 @@ func (c *Collector) Describe(descs chan<- *prometheus.Desc) {
 // Collect collects all metrics for this collector, and emits them through the provided channel.
 // It implements prometheus.Collector.
 func (c *Collector) Collect(metrics chan<- prometheus.Metric) {
-	level.Debug(c.logger).Log("msg", "Collecting metrics.")
+	c.logger.Debug("Collecting metrics.")
 
 	// Get a healthy connection from the pool (creates one if needed)
 	db, err := c.getDB()
 	if err != nil {
-		level.Error(c.logger).Log("msg", "Failed to connect to Databricks.", "err", err)
-		metrics <- prometheus.MustNewConstMetric(c.metrics.Up, prometheus.GaugeValue, 0)
+		c.logger.Error("Failed to connect to Databricks.", "err", err)
+		metrics <- prometheus.MustNewConstMetric(c.metrics.ExporterUp, prometheus.GaugeValue, 0)
 		return
 	}
 	// Don't close - connection is reused across scrapes
 
 	// Emit up=1 early so it's always reported even if collection hangs
-	metrics <- prometheus.MustNewConstMetric(c.metrics.Up, prometheus.GaugeValue, 1)
-	level.Debug(c.logger).Log("msg", "Database connection healthy, emitted up=1")
+	metrics <- prometheus.MustNewConstMetric(c.metrics.ExporterUp, prometheus.GaugeValue, 1)
+	c.logger.Debug("Database connection healthy, emitted up=1")
+
+	// Emit exporter info metric with version and window configuration
+	metrics <- prometheus.MustNewConstMetric(
+		c.metrics.ExporterInfo,
+		prometheus.GaugeValue,
+		1,
+		c.config.Version,
+		c.config.BillingLookback.String(),
+		c.config.JobsLookback.String(),
+		c.config.PipelinesLookback.String(),
+		c.config.QueriesLookback.String(),
+	)
 
 	queryTimeout := c.config.QueryTimeout
 	if queryTimeout == 0 {
@@ -165,10 +179,10 @@ func (c *Collector) Collect(metrics chan<- prometheus.Metric) {
 	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
 	defer cancel()
 
-	billingCollector := NewBillingCollector(c.logger, db, c.metrics, ctx, c.config)
-	jobsCollector := NewJobsCollector(c.logger, db, c.metrics, ctx, c.config)
-	pipelinesCollector := NewPipelinesCollector(c.logger, db, c.metrics, ctx, c.config)
-	sqlWarehouseCollector := NewSQLWarehouseCollector(c.logger, db, c.metrics, ctx, c.config)
+	billingCollector := NewBillingCollector(ctx, db, c.metrics, c.config, c.logger)
+	jobsCollector := NewJobsCollector(ctx, db, c.metrics, c.config, c.logger)
+	pipelinesCollector := NewPipelinesCollector(ctx, db, c.metrics, c.config, c.logger)
+	sqlWarehouseCollector := NewSQLWarehouseCollector(ctx, db, c.metrics, c.config, c.logger)
 
 	start := time.Now()
 
@@ -181,5 +195,5 @@ func (c *Collector) Collect(metrics chan<- prometheus.Metric) {
 	go func() { defer wg.Done(); sqlWarehouseCollector.Collect(metrics) }()
 	wg.Wait()
 
-	level.Debug(c.logger).Log("msg", "Finished collecting metrics", "duration_seconds", time.Since(start).Seconds())
+	c.logger.Debug("Finished collecting metrics", "duration_seconds", time.Since(start).Seconds())
 }
