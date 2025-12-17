@@ -79,7 +79,7 @@ The mixin expects the following metrics from the Databricks Prometheus exporter.
 
 ### System and health
 - `databricks_exporter_up` - Exporter connectivity (1=healthy, 0=failed)
-- `databricks_scrape_status{query, status}` - Per-query scrape status (1=success, 0=failure)
+- `databricks_scrape_status{query}` - Per-query scrape status (1=success, 0=failure)
 - `databricks_exporter_info{version, billing_window, jobs_window, pipelines_window, queries_window}` - Build and configuration info
 
 All metrics include standard Prometheus labels `job` and `instance` for scrape identification.

@@ -48,6 +48,7 @@ func (c *PipelinesCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.metrics.PipelineRunDurationSeconds
 	ch <- c.metrics.PipelineRetryEventsTotal
 	ch <- c.metrics.PipelineFreshnessLagSeconds
+	ch <- c.metrics.ScrapeStatus
 }
 
 // Collect fetches metrics from Databricks and sends them to Prometheus.
@@ -63,29 +64,45 @@ func (c *PipelinesCollector) Collect(ch chan<- prometheus.Metric) {
 	// Skip collection if table is known to be unavailable
 	if !c.isTableAvailable() {
 		c.logger.Debug("Skipping pipeline metrics collection - table unavailable")
+		// Emit scrape status as 0 when table is unavailable
+		ch <- prometheus.MustNewConstMetric(c.metrics.ScrapeStatus, prometheus.GaugeValue, 0, "pipelines")
 		return
 	}
+
+	var hasError bool
 
 	// Collect each metric, but continue on errors
 	if err := c.collectPipelineRuns(ch); err != nil {
 		c.handleCollectionError("pipeline runs", err)
+		hasError = true
 	}
 
 	if err := c.collectPipelineRunStatus(ch); err != nil {
 		c.handleCollectionError("pipeline run status", err)
+		hasError = true
 	}
 
 	if err := c.collectPipelineRunDuration(ch); err != nil {
 		c.handleCollectionError("pipeline run duration", err)
+		hasError = true
 	}
 
 	if err := c.collectPipelineRetryEvents(ch); err != nil {
 		c.handleCollectionError("pipeline retry events", err)
+		hasError = true
 	}
 
 	if err := c.collectPipelineFreshnessLag(ch); err != nil {
 		c.handleCollectionError("pipeline freshness lag", err)
+		hasError = true
 	}
+
+	// Emit scrape status
+	status := 1.0
+	if hasError {
+		status = 0.0
+	}
+	ch <- prometheus.MustNewConstMetric(c.metrics.ScrapeStatus, prometheus.GaugeValue, status, "pipelines")
 
 	c.logger.Debug("Finished collecting pipeline metrics", "duration_seconds", time.Since(start).Seconds())
 }

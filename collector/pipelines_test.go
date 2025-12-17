@@ -61,7 +61,7 @@ func TestPipelinesCollector_Describe(t *testing.T) {
 		descriptions = append(descriptions, desc)
 	}
 
-	expectedCount := 5 // PipelineRuns, PipelineRunStatus, PipelineRunDuration, PipelineRetryEvents, PipelineFreshnessLag
+	expectedCount := 6 // PipelineRuns, PipelineRunStatus, PipelineRunDuration, PipelineRetryEvents, PipelineFreshnessLag, ScrapeStatus
 	if len(descriptions) != expectedCount {
 		t.Errorf("expected %d metric descriptions, got %d", expectedCount, len(descriptions))
 	}

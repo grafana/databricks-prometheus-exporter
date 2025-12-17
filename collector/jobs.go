@@ -38,6 +38,7 @@ func (c *JobsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.metrics.JobRunDurationSeconds
 	ch <- c.metrics.TaskRetriesTotal
 	ch <- c.metrics.JobSLAMissTotal
+	ch <- c.metrics.ScrapeStatus
 }
 
 // Collect fetches metrics from Databricks and sends them to Prometheus.
@@ -45,25 +46,39 @@ func (c *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 	c.logger.Debug("Collecting job metrics")
 
+	var hasError bool
+
 	if err := c.collectJobRuns(ch); err != nil {
 		c.logger.Error("Failed to collect job runs", "err", err)
+		hasError = true
 	}
 
 	if err := c.collectJobRunStatus(ch); err != nil {
 		c.logger.Error("Failed to collect job run status", "err", err)
+		hasError = true
 	}
 
 	if err := c.collectJobRunDuration(ch); err != nil {
 		c.logger.Error("Failed to collect job run duration", "err", err)
+		hasError = true
 	}
 
 	if err := c.collectTaskRetries(ch); err != nil {
 		c.logger.Error("Failed to collect task retries", "err", err)
+		hasError = true
 	}
 
 	if err := c.collectJobSLAMiss(ch); err != nil {
 		c.logger.Error("Failed to collect job SLA misses", "err", err)
+		hasError = true
 	}
+
+	// Emit scrape status
+	status := 1.0
+	if hasError {
+		status = 0.0
+	}
+	ch <- prometheus.MustNewConstMetric(c.metrics.ScrapeStatus, prometheus.GaugeValue, status, "jobs")
 
 	c.logger.Debug("Finished collecting job metrics", "duration_seconds", time.Since(start).Seconds())
 }

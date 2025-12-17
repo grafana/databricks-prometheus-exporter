@@ -236,7 +236,7 @@ Indicates whether the exporter successfully connected to Databricks. Note: This 
 Status of individual scrape queries. Provides granular visibility into which system table queries succeeded or failed during each scrape.
 
 - **Type:** Gauge
-- **Labels:** `query` (e.g., `billing_dbus`, `job_runs`, `queries`), `status` (`success` or `error`)
+- **Labels:** `query` (e.g., `billing`, `jobs`, `pipelines`, `queries`)
 - **Values:**
   - `1` - Query completed successfully
   - `0` - Query failed (timeout, error, or table unavailable)

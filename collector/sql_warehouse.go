@@ -38,6 +38,7 @@ func (c *SQLWarehouseCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.metrics.QueryDurationSeconds
 	ch <- c.metrics.QueryErrorsTotal
 	ch <- c.metrics.QueriesRunning
+	ch <- c.metrics.ScrapeStatus
 }
 
 // Collect fetches metrics from Databricks and sends them to Prometheus.
@@ -45,22 +46,35 @@ func (c *SQLWarehouseCollector) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 	c.logger.Debug("Collecting SQL warehouse metrics")
 
+	var hasError bool
+
 	// Collect each metric, but continue on errors
 	if err := c.collectQueries(ch); err != nil {
 		c.logger.Error("Failed to collect queries", "err", err)
+		hasError = true
 	}
 
 	if err := c.collectQueryErrors(ch); err != nil {
 		c.logger.Error("Failed to collect query errors", "err", err)
+		hasError = true
 	}
 
 	if err := c.collectQueryDuration(ch); err != nil {
 		c.logger.Error("Failed to collect query duration", "err", err)
+		hasError = true
 	}
 
 	if err := c.collectQueriesRunning(ch); err != nil {
 		c.logger.Error("Failed to collect running queries", "err", err)
+		hasError = true
 	}
+
+	// Emit scrape status
+	status := 1.0
+	if hasError {
+		status = 0.0
+	}
+	ch <- prometheus.MustNewConstMetric(c.metrics.ScrapeStatus, prometheus.GaugeValue, status, "queries")
 
 	c.logger.Debug("Finished collecting SQL warehouse metrics", "duration_seconds", time.Since(start).Seconds())
 }

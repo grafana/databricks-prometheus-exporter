@@ -61,7 +61,7 @@ func TestJobsCollector_Describe(t *testing.T) {
 		descriptions = append(descriptions, desc)
 	}
 
-	expectedCount := 5 // JobRuns, JobRunStatus, JobRunDuration, TaskRetries, JobSLAMiss
+	expectedCount := 6 // JobRuns, JobRunStatus, JobRunDuration, TaskRetries, JobSLAMiss, ScrapeStatus
 	if len(descriptions) != expectedCount {
 		t.Errorf("expected %d metric descriptions, got %d", expectedCount, len(descriptions))
 	}

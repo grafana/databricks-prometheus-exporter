@@ -123,7 +123,7 @@ func TestNewMetricDescriptors(t *testing.T) {
 		{
 			name:   "ScrapeStatus",
 			desc:   metrics.ScrapeStatus,
-			labels: []string{labelQuery, labelStatus},
+			labels: []string{labelQuery},
 		},
 	}
 

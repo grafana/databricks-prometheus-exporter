@@ -61,7 +61,7 @@ func TestSQLWarehouseCollector_Describe(t *testing.T) {
 		descriptions = append(descriptions, desc)
 	}
 
-	expectedCount := 4 // QueriesTotal, QueryDurationSeconds, QueryErrorsTotal, QueriesRunning
+	expectedCount := 5 // QueriesTotal, QueryDurationSeconds, QueryErrorsTotal, QueriesRunning, ScrapeStatus
 	if len(descriptions) != expectedCount {
 		t.Errorf("expected %d metric descriptions, got %d", expectedCount, len(descriptions))
 	}

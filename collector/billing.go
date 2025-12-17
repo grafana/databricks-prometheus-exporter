@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -31,12 +32,22 @@ func NewBillingCollector(ctx context.Context, db *sql.DB, metrics *MetricDescrip
 	}
 }
 
+// Describe sends the descriptors of each metric over the provided channel.
+func (c *BillingCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- c.metrics.BillingDBUsTotal
+	ch <- c.metrics.BillingCostEstimateUSD
+	ch <- c.metrics.PriceChangeEvents
+	ch <- c.metrics.BillingExportErrorsTotal
+	ch <- c.metrics.ScrapeStatus
+}
+
 // Collect retrieves and emits all billing metrics.
 // Queries run in parallel to reduce total scrape time (cost estimate query can take ~100s).
 func (c *BillingCollector) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 	c.logger.Debug("Collecting billing metrics")
 
+	var hasError atomic.Bool
 	var wg sync.WaitGroup
 	wg.Add(3)
 
@@ -45,6 +56,7 @@ func (c *BillingCollector) Collect(ch chan<- prometheus.Metric) {
 		if err := c.collectBillingDBUs(ch); err != nil {
 			c.logger.Error("Failed to collect billing DBUs", "err", err)
 			c.emitError(ch, "billing_dbus")
+			hasError.Store(true)
 		}
 	}()
 
@@ -53,6 +65,7 @@ func (c *BillingCollector) Collect(ch chan<- prometheus.Metric) {
 		if err := c.collectBillingCost(ch); err != nil {
 			c.logger.Error("Failed to collect billing cost estimates", "err", err)
 			c.emitError(ch, "billing_cost")
+			hasError.Store(true)
 		}
 	}()
 
@@ -61,10 +74,19 @@ func (c *BillingCollector) Collect(ch chan<- prometheus.Metric) {
 		if err := c.collectPriceChangeEvents(ch); err != nil {
 			c.logger.Error("Failed to collect price change events", "err", err)
 			c.emitError(ch, "price_changes")
+			hasError.Store(true)
 		}
 	}()
 
 	wg.Wait()
+
+	// Emit scrape status
+	status := 1.0
+	if hasError.Load() {
+		status = 0.0
+	}
+	ch <- prometheus.MustNewConstMetric(c.metrics.ScrapeStatus, prometheus.GaugeValue, status, "billing")
+
 	c.logger.Debug("Finished collecting billing metrics", "duration_seconds", time.Since(start).Seconds())
 }
 

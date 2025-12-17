@@ -192,7 +192,7 @@ func NewMetricDescriptors() *MetricDescriptors {
 			prometheus.BuildFQName(namespace, "", "scrape_status"),
 			"Status of individual scrape queries. "+
 				"1 = success, 0 = failure (timeout, error, or table unavailable).",
-			[]string{labelQuery, labelStatus},
+			[]string{labelQuery},
 			nil,
 		),
 
