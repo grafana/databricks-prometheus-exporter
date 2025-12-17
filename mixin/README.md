@@ -81,15 +81,13 @@ All metrics include standard Prometheus labels `job` and `instance` for scrape i
 
 ## Alerts
 
-The mixin includes 16 alerts across three personas:
-
-### FinOps Persona (4 alerts)
+### FinOps Persona Alerts
 - `DatabricksWarnSpendSpike` - 25% DoD cost increase
 - `DatabricksCriticalSpendSpike` - 50% DoD cost increase
 - `DatabricksWarnNoBillingData` - No billing data for 2 hours
 - `DatabricksCriticalNoBillingData` - No billing data for 4 hours
 
-### SRE/Platform Persona (8 alerts)
+### SRE/Platform Persona
 - `DatabricksWarnJobFailureRate` - Job failure rate > 10%
 - `DatabricksCriticalJobFailureRate` - Job failure rate > 20%
 - `DatabricksWarnJobDurationRegression` - Job duration 30% above 7-day median
@@ -99,7 +97,7 @@ The mixin includes 16 alerts across three personas:
 - `DatabricksWarnPipelineDurationRegression` - Pipeline duration 30% above 7-day median
 - `DatabricksCritPipelineDurationHigh` - Pipeline duration 60% above 7-day median
 
-### Analytics/BI Persona (4 alerts)
+### Analytics/BI Persona
 - `DatabricksWarnSqlQueryErrorRate` - SQL error rate > 5%
 - `DatabricksCriticalSqlQueryErrorRate` - SQL error rate > 10%
 - `DatabricksWarnSqlQueryLatencyRegression` - Query latency 30% above 7-day median
@@ -224,15 +222,6 @@ SELECT COUNT(*) FROM system.lakeflow.pipeline_update_timeline LIMIT 1;
 1. **Grant Permissions**: Ensure all required Unity Catalog permissions are granted as described in the main [README - Required Permissions](../README.md#required-permissions) section
 2. **Verify Schema Access**: Confirm the Service Principal has `USE SCHEMA` and `SELECT` permissions on `system.lakeflow`
 3. **Wait for Auto-Recovery**: The exporter checks table availability periodically (every ~10 scrapes). Once permissions are granted, collection resumes automatically - no restart needed!
-
-**Exporter Behavior:**
-The exporter now handles this gracefully:
-- ✅ Checks table availability at startup
-- ✅ Logs a clear warning **once** (not spam)
-- ✅ Skips collection if unavailable
-- ✅ Rechecks periodically (every 10 scrapes)
-- ✅ Automatically resumes when permissions are fixed
-- ✅ Continues collecting all other metrics normally
 
 ## References
 
