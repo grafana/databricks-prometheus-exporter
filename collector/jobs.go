@@ -217,6 +217,11 @@ func (c *JobsCollector) collectJobRunDuration(ch chan<- prometheus.Metric) error
 
 // collectTaskRetries collects the total number of task retries per job and task.
 func (c *JobsCollector) collectTaskRetries(ch chan<- prometheus.Metric) error {
+	// Skip task retries if disabled (high cardinality due to task_key label)
+	if !c.config.CollectTaskRetries {
+		return nil
+	}
+
 	lookback := c.config.JobsLookback
 	if lookback == 0 {
 		lookback = DefaultJobsLookback
@@ -227,11 +232,6 @@ func (c *JobsCollector) collectTaskRetries(ch chan<- prometheus.Metric) error {
 		return fmt.Errorf("failed to execute task retries query: %w", err)
 	}
 	defer rows.Close()
-
-	// Skip task retries if disabled (high cardinality due to task_key)
-	if !c.config.CollectTaskRetries {
-		return nil
-	}
 
 	for rows.Next() {
 		var workspaceID, jobID, jobName, taskKey sql.NullString

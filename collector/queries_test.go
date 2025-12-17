@@ -6,234 +6,6 @@ import (
 	"time"
 )
 
-func TestQueries_NotEmpty(t *testing.T) {
-	queries := []struct {
-		name  string
-		query string
-	}{
-		{"billingDBUsQuery", billingDBUsQuery},
-		{"billingCostEstimateQuery", billingCostEstimateQuery},
-		{"priceChangeEventsQuery", priceChangeEventsQuery},
-		{"jobRunsQuery", jobRunsQuery},
-		{"jobRunStatusQuery", jobRunStatusQuery},
-		{"jobRunDurationQuery", jobRunDurationQuery},
-		{"taskRetriesQuery", taskRetriesQuery},
-		{"jobSLAMissQuery", jobSLAMissQuery},
-		{"pipelineRunsQuery", pipelineRunsQuery},
-		{"pipelineRunStatusQuery", pipelineRunStatusQuery},
-		{"pipelineRunDurationQuery", pipelineRunDurationQuery},
-		{"pipelineRetryEventsQuery", pipelineRetryEventsQuery},
-		{"pipelineFreshnessLagQuery", pipelineFreshnessLagQuery},
-		{"queriesQuery", queriesQuery},
-		{"queryErrorsQuery", queryErrorsQuery},
-		{"queryDurationQuery", queryDurationQuery},
-		{"queriesRunningQuery", queriesRunningQuery},
-	}
-
-	for _, tt := range queries {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.query == "" {
-				t.Errorf("%s is empty", tt.name)
-			}
-			if len(strings.TrimSpace(tt.query)) == 0 {
-				t.Errorf("%s contains only whitespace", tt.name)
-			}
-		})
-	}
-}
-
-func TestQueries_ContainSelect(t *testing.T) {
-	queries := []struct {
-		name  string
-		query string
-	}{
-		{"billingDBUsQuery", billingDBUsQuery},
-		{"billingCostEstimateQuery", billingCostEstimateQuery},
-		{"priceChangeEventsQuery", priceChangeEventsQuery},
-		{"jobRunsQuery", jobRunsQuery},
-		{"jobRunStatusQuery", jobRunStatusQuery},
-		{"jobRunDurationQuery", jobRunDurationQuery},
-		{"taskRetriesQuery", taskRetriesQuery},
-		{"jobSLAMissQuery", jobSLAMissQuery},
-		{"pipelineRunsQuery", pipelineRunsQuery},
-		{"pipelineRunStatusQuery", pipelineRunStatusQuery},
-		{"pipelineRunDurationQuery", pipelineRunDurationQuery},
-		{"pipelineRetryEventsQuery", pipelineRetryEventsQuery},
-		{"pipelineFreshnessLagQuery", pipelineFreshnessLagQuery},
-		{"queriesQuery", queriesQuery},
-		{"queryErrorsQuery", queryErrorsQuery},
-		{"queryDurationQuery", queryDurationQuery},
-		{"queriesRunningQuery", queriesRunningQuery},
-	}
-
-	for _, tt := range queries {
-		t.Run(tt.name, func(t *testing.T) {
-			upper := strings.ToUpper(tt.query)
-			if !strings.Contains(upper, "SELECT") {
-				t.Errorf("%s does not contain SELECT statement", tt.name)
-			}
-		})
-	}
-}
-
-func TestQueries_ContainSystemTable(t *testing.T) {
-	// Verify each query references the correct system table
-	tests := []struct {
-		name      string
-		query     string
-		tableName string
-	}{
-		{"billingDBUsQuery", billingDBUsQuery, "system.billing.usage"},
-		{"billingCostEstimateQuery", billingCostEstimateQuery, "system.billing.usage"},
-		{"priceChangeEventsQuery", priceChangeEventsQuery, "system.billing.list_prices"},
-		{"jobRunsQuery", jobRunsQuery, "system.lakeflow.job_run_timeline"},
-		{"jobRunStatusQuery", jobRunStatusQuery, "system.lakeflow.job_run_timeline"},
-		{"jobRunDurationQuery", jobRunDurationQuery, "system.lakeflow.job_run_timeline"},
-		{"taskRetriesQuery", taskRetriesQuery, "system.lakeflow.job_task_run_timeline"},
-		{"jobSLAMissQuery", jobSLAMissQuery, "system.lakeflow.job_run_timeline"},
-		{"pipelineRunsQuery", pipelineRunsQuery, "system.lakeflow.pipeline_update_timeline"},
-		{"pipelineRunStatusQuery", pipelineRunStatusQuery, "system.lakeflow.pipeline_update_timeline"},
-		{"pipelineRunDurationQuery", pipelineRunDurationQuery, "system.lakeflow.pipeline_update_timeline"},
-		{"pipelineRetryEventsQuery", pipelineRetryEventsQuery, "system.lakeflow.pipeline_update_timeline"},
-		{"pipelineFreshnessLagQuery", pipelineFreshnessLagQuery, "system.lakeflow.pipeline_update_timeline"},
-		{"queriesQuery", queriesQuery, "system.query.history"},
-		{"queryErrorsQuery", queryErrorsQuery, "system.query.history"},
-		{"queryDurationQuery", queryDurationQuery, "system.query.history"},
-		{"queriesRunningQuery", queriesRunningQuery, "system.query.history"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if !strings.Contains(tt.query, tt.tableName) {
-				t.Errorf("%s does not reference expected table %s", tt.name, tt.tableName)
-			}
-		})
-	}
-}
-
-func TestQueries_ContainWorkspaceID(t *testing.T) {
-	// Most queries should filter or group by workspace_id
-	// Exceptions: priceChangeEventsQuery (aggregates across all workspaces)
-	queries := []struct {
-		name          string
-		query         string
-		shouldContain bool
-	}{
-		{"billingDBUsQuery", billingDBUsQuery, true},
-		{"billingCostEstimateQuery", billingCostEstimateQuery, true},
-		{"priceChangeEventsQuery", priceChangeEventsQuery, false}, // No workspace_id
-		{"jobRunsQuery", jobRunsQuery, true},
-		{"jobRunStatusQuery", jobRunStatusQuery, true},
-		{"jobRunDurationQuery", jobRunDurationQuery, true},
-		{"taskRetriesQuery", taskRetriesQuery, true},
-		{"jobSLAMissQuery", jobSLAMissQuery, true},
-		{"pipelineRunsQuery", pipelineRunsQuery, true},
-		{"pipelineRunStatusQuery", pipelineRunStatusQuery, true},
-		{"pipelineRunDurationQuery", pipelineRunDurationQuery, true},
-		{"pipelineRetryEventsQuery", pipelineRetryEventsQuery, true},
-		{"pipelineFreshnessLagQuery", pipelineFreshnessLagQuery, true},
-		{"queriesQuery", queriesQuery, true},
-		{"queryErrorsQuery", queryErrorsQuery, true},
-		{"queryDurationQuery", queryDurationQuery, true},
-		{"queriesRunningQuery", queriesRunningQuery, true},
-	}
-
-	for _, tt := range queries {
-		t.Run(tt.name, func(t *testing.T) {
-			containsWorkspaceID := strings.Contains(tt.query, "workspace_id")
-			if tt.shouldContain && !containsWorkspaceID {
-				t.Errorf("%s should contain workspace_id but doesn't", tt.name)
-			}
-			if !tt.shouldContain && containsWorkspaceID {
-				t.Errorf("%s should not contain workspace_id but does", tt.name)
-			}
-		})
-	}
-}
-
-func TestQueries_ContainTimeFilter(t *testing.T) {
-	// All queries should have a time-based WHERE clause for performance
-	queries := []struct {
-		name  string
-		query string
-	}{
-		{"billingDBUsQuery", billingDBUsQuery},
-		{"billingCostEstimateQuery", billingCostEstimateQuery},
-		{"priceChangeEventsQuery", priceChangeEventsQuery},
-		{"jobRunsQuery", jobRunsQuery},
-		{"jobRunStatusQuery", jobRunStatusQuery},
-		{"jobRunDurationQuery", jobRunDurationQuery},
-		{"taskRetriesQuery", taskRetriesQuery},
-		{"jobSLAMissQuery", jobSLAMissQuery},
-		{"pipelineRunsQuery", pipelineRunsQuery},
-		{"pipelineRunStatusQuery", pipelineRunStatusQuery},
-		{"pipelineRunDurationQuery", pipelineRunDurationQuery},
-		{"pipelineRetryEventsQuery", pipelineRetryEventsQuery},
-		{"pipelineFreshnessLagQuery", pipelineFreshnessLagQuery},
-		{"queriesQuery", queriesQuery},
-		{"queryErrorsQuery", queryErrorsQuery},
-		{"queryDurationQuery", queryDurationQuery},
-		{"queriesRunningQuery", queriesRunningQuery},
-	}
-
-	for _, tt := range queries {
-		t.Run(tt.name, func(t *testing.T) {
-			upper := strings.ToUpper(tt.query)
-			// Check for time filters (INTERVAL, current_date, current_timestamp)
-			hasTimeFilter := strings.Contains(upper, "INTERVAL") ||
-				strings.Contains(upper, "CURRENT_DATE") ||
-				strings.Contains(upper, "CURRENT_TIMESTAMP")
-
-			if !hasTimeFilter {
-				t.Errorf("%s does not contain time-based filter", tt.name)
-			}
-		})
-	}
-}
-
-func TestQueries_ContainAggregation(t *testing.T) {
-	// Most queries should have aggregation (COUNT, SUM, AVG, etc.)
-	// This is important for metric generation
-	queries := []struct {
-		name  string
-		query string
-	}{
-		{"billingDBUsQuery", billingDBUsQuery},
-		{"billingCostEstimateQuery", billingCostEstimateQuery},
-		{"priceChangeEventsQuery", priceChangeEventsQuery},
-		{"jobRunsQuery", jobRunsQuery},
-		{"jobRunStatusQuery", jobRunStatusQuery},
-		{"jobRunDurationQuery", jobRunDurationQuery},
-		{"taskRetriesQuery", taskRetriesQuery},
-		{"jobSLAMissQuery", jobSLAMissQuery},
-		{"pipelineRunsQuery", pipelineRunsQuery},
-		{"pipelineRunStatusQuery", pipelineRunStatusQuery},
-		{"pipelineRunDurationQuery", pipelineRunDurationQuery},
-		{"pipelineRetryEventsQuery", pipelineRetryEventsQuery},
-		{"pipelineFreshnessLagQuery", pipelineFreshnessLagQuery},
-		{"queriesQuery", queriesQuery},
-		{"queryErrorsQuery", queryErrorsQuery},
-		{"queryDurationQuery", queryDurationQuery},
-		{"queriesRunningQuery", queriesRunningQuery},
-	}
-
-	for _, tt := range queries {
-		t.Run(tt.name, func(t *testing.T) {
-			upper := strings.ToUpper(tt.query)
-			hasAggregation := strings.Contains(upper, "COUNT(") ||
-				strings.Contains(upper, "SUM(") ||
-				strings.Contains(upper, "AVG(") ||
-				strings.Contains(upper, "MAX(") ||
-				strings.Contains(upper, "MIN(") ||
-				strings.Contains(upper, "PERCENTILE_APPROX(")
-
-			if !hasAggregation {
-				t.Errorf("%s does not contain aggregation function", tt.name)
-			}
-		})
-	}
-}
-
 // TestDurationToSQLInterval tests the duration to SQL interval conversion function.
 // Databricks SQL accepts both singular and plural forms (e.g., "1 HOUR" and "1 HOURS"),
 // but we use grammatically correct forms for clarity.
@@ -276,33 +48,7 @@ func TestDurationToSQLInterval(t *testing.T) {
 	}
 }
 
-func TestQueries_UseConfiguredWindows(t *testing.T) {
-	// Verify legacy queries use the expected time windows
-	tests := []struct {
-		queryName string
-		query     string
-		window    string
-	}{
-		{"billingDBUsQuery", billingDBUsQuery, "1 DAY"},
-		{"billingCostEstimateQuery", billingCostEstimateQuery, "1 DAY"},
-		{"priceChangeEventsQuery", priceChangeEventsQuery, "1 DAY"},
-		{"jobRunsQuery", jobRunsQuery, "2 HOURS"},
-		{"jobRunStatusQuery", jobRunStatusQuery, "2 HOURS"},
-		{"jobRunDurationQuery", jobRunDurationQuery, "2 HOURS"},
-		{"queriesQuery", queriesQuery, "1 HOUR"},
-		{"queryErrorsQuery", queryErrorsQuery, "1 HOUR"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.queryName, func(t *testing.T) {
-			if !strings.Contains(tt.query, tt.window) {
-				t.Errorf("%s should contain time window %q", tt.queryName, tt.window)
-			}
-		})
-	}
-}
-
-// ===== Build* Function Tests =====
+// ===== Billing Query Builder Tests =====
 
 func TestBuildBillingDBUsQuery(t *testing.T) {
 	tests := []struct {
@@ -385,6 +131,8 @@ func TestBuildPriceChangeEventsQuery(t *testing.T) {
 	}
 }
 
+// ===== Jobs Query Builder Tests =====
+
 func TestBuildJobRunsQuery(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -409,6 +157,118 @@ func TestBuildJobRunsQuery(t *testing.T) {
 	}
 }
 
+func TestBuildJobRunStatusQuery(t *testing.T) {
+	query := BuildJobRunStatusQuery(2 * time.Hour)
+	if !strings.Contains(query, "INTERVAL 2 HOURS") {
+		t.Error("Query should contain INTERVAL 2 HOURS")
+	}
+	if !strings.Contains(query, "result_state") {
+		t.Error("Query should select result_state")
+	}
+	if !strings.Contains(query, "system.lakeflow.job_run_timeline") {
+		t.Error("Query should reference system.lakeflow.job_run_timeline")
+	}
+}
+
+func TestBuildJobRunDurationQuery(t *testing.T) {
+	query := BuildJobRunDurationQuery(2 * time.Hour)
+	if !strings.Contains(query, "INTERVAL 2 HOURS") {
+		t.Error("Query should contain INTERVAL 2 HOURS")
+	}
+	if !strings.Contains(query, "percentile_approx") {
+		t.Error("Query should use percentile_approx for quantiles")
+	}
+	// Verify quantile levels
+	for _, q := range []string{"0.5", "0.95", "0.99"} {
+		if !strings.Contains(query, q) {
+			t.Errorf("Query should calculate %s quantile", q)
+		}
+	}
+}
+
+func TestBuildTaskRetriesQuery(t *testing.T) {
+	query := BuildTaskRetriesQuery(2 * time.Hour)
+	if !strings.Contains(query, "INTERVAL 2 HOURS") {
+		t.Error("Query should contain INTERVAL 2 HOURS")
+	}
+	if !strings.Contains(query, "system.lakeflow.job_task_run_timeline") {
+		t.Error("Query should reference system.lakeflow.job_task_run_timeline")
+	}
+	if !strings.Contains(query, "retry_count") {
+		t.Error("Query should calculate retry_count")
+	}
+}
+
+func TestBuildJobSLAMissQuery(t *testing.T) {
+	query := BuildJobSLAMissQuery(2*time.Hour, 3600)
+	if !strings.Contains(query, "INTERVAL 2 HOURS") {
+		t.Error("Query should contain INTERVAL 2 HOURS")
+	}
+	if !strings.Contains(query, "3600") {
+		t.Error("Query should use SLA threshold of 3600 seconds")
+	}
+	if !strings.Contains(query, "sla_miss_count") {
+		t.Error("Query should calculate sla_miss_count")
+	}
+}
+
+// ===== Pipelines Query Builder Tests =====
+
+func TestBuildPipelineRunsQuery(t *testing.T) {
+	query := BuildPipelineRunsQuery(2 * time.Hour)
+	if !strings.Contains(query, "INTERVAL 2 HOURS") {
+		t.Error("Query should contain INTERVAL 2 HOURS")
+	}
+	if !strings.Contains(query, "system.lakeflow.pipeline_update_timeline") {
+		t.Error("Query should reference system.lakeflow.pipeline_update_timeline")
+	}
+}
+
+func TestBuildPipelineRunStatusQuery(t *testing.T) {
+	query := BuildPipelineRunStatusQuery(2 * time.Hour)
+	if !strings.Contains(query, "INTERVAL 2 HOURS") {
+		t.Error("Query should contain INTERVAL 2 HOURS")
+	}
+	if !strings.Contains(query, "result_state") {
+		t.Error("Query should select result_state")
+	}
+}
+
+func TestBuildPipelineRunDurationQuery(t *testing.T) {
+	query := BuildPipelineRunDurationQuery(2 * time.Hour)
+	if !strings.Contains(query, "INTERVAL 2 HOURS") {
+		t.Error("Query should contain INTERVAL 2 HOURS")
+	}
+	if !strings.Contains(query, "percentile_approx") {
+		t.Error("Query should use percentile_approx for quantiles")
+	}
+}
+
+func TestBuildPipelineRetryEventsQuery(t *testing.T) {
+	query := BuildPipelineRetryEventsQuery(2 * time.Hour)
+	if !strings.Contains(query, "INTERVAL 2 HOURS") {
+		t.Error("Query should contain INTERVAL 2 HOURS")
+	}
+	if !strings.Contains(query, "retry_count") {
+		t.Error("Query should calculate retry_count")
+	}
+}
+
+func TestBuildPipelineFreshnessLagQuery(t *testing.T) {
+	query := BuildPipelineFreshnessLagQuery(2 * time.Hour)
+	if !strings.Contains(query, "INTERVAL 2 HOURS") {
+		t.Error("Query should contain INTERVAL 2 HOURS")
+	}
+	if !strings.Contains(query, "freshness_lag_seconds") {
+		t.Error("Query should calculate freshness_lag_seconds")
+	}
+	if !strings.Contains(query, "COMPLETED") {
+		t.Error("Query should filter for completed pipelines")
+	}
+}
+
+// ===== SQL Warehouse Query Builder Tests =====
+
 func TestBuildQueriesQuery(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -427,6 +287,241 @@ func TestBuildQueriesQuery(t *testing.T) {
 			}
 			if !strings.Contains(query, "system.query.history") {
 				t.Error("Query should reference system.query.history")
+			}
+		})
+	}
+}
+
+func TestBuildQueryErrorsQuery(t *testing.T) {
+	query := BuildQueryErrorsQuery(1 * time.Hour)
+	if !strings.Contains(query, "INTERVAL 1 HOUR") {
+		t.Error("Query should contain INTERVAL 1 HOUR")
+	}
+	if !strings.Contains(query, "error_message IS NOT NULL") {
+		t.Error("Query should filter for error_message IS NOT NULL")
+	}
+}
+
+func TestBuildQueryDurationQuery(t *testing.T) {
+	query := BuildQueryDurationQuery(1 * time.Hour)
+	if !strings.Contains(query, "INTERVAL 1 HOUR") {
+		t.Error("Query should contain INTERVAL 1 HOUR")
+	}
+	if !strings.Contains(query, "percentile_approx") {
+		t.Error("Query should use percentile_approx for quantiles")
+	}
+	if !strings.Contains(query, "total_duration_ms") {
+		t.Error("Query should use total_duration_ms field")
+	}
+}
+
+func TestBuildQueriesRunningQuery(t *testing.T) {
+	query := BuildQueriesRunningQuery(1 * time.Hour)
+	if !strings.Contains(query, "INTERVAL 1 HOUR") {
+		t.Error("Query should contain INTERVAL 1 HOUR")
+	}
+	if !strings.Contains(query, "max_concurrent") {
+		t.Error("Query should calculate max_concurrent")
+	}
+}
+
+// ===== Query Properties Tests =====
+
+func TestAllQueriesContainSelect(t *testing.T) {
+	lookback := 2 * time.Hour
+	billingLookback := 24 * time.Hour
+
+	queries := []struct {
+		name  string
+		query string
+	}{
+		{"BuildBillingDBUsQuery", BuildBillingDBUsQuery(billingLookback)},
+		{"BuildBillingCostEstimateQuery", BuildBillingCostEstimateQuery(billingLookback)},
+		{"BuildPriceChangeEventsQuery", BuildPriceChangeEventsQuery(billingLookback)},
+		{"BuildJobRunsQuery", BuildJobRunsQuery(lookback)},
+		{"BuildJobRunStatusQuery", BuildJobRunStatusQuery(lookback)},
+		{"BuildJobRunDurationQuery", BuildJobRunDurationQuery(lookback)},
+		{"BuildTaskRetriesQuery", BuildTaskRetriesQuery(lookback)},
+		{"BuildJobSLAMissQuery", BuildJobSLAMissQuery(lookback, 3600)},
+		{"BuildPipelineRunsQuery", BuildPipelineRunsQuery(lookback)},
+		{"BuildPipelineRunStatusQuery", BuildPipelineRunStatusQuery(lookback)},
+		{"BuildPipelineRunDurationQuery", BuildPipelineRunDurationQuery(lookback)},
+		{"BuildPipelineRetryEventsQuery", BuildPipelineRetryEventsQuery(lookback)},
+		{"BuildPipelineFreshnessLagQuery", BuildPipelineFreshnessLagQuery(lookback)},
+		{"BuildQueriesQuery", BuildQueriesQuery(lookback)},
+		{"BuildQueryErrorsQuery", BuildQueryErrorsQuery(lookback)},
+		{"BuildQueryDurationQuery", BuildQueryDurationQuery(lookback)},
+		{"BuildQueriesRunningQuery", BuildQueriesRunningQuery(lookback)},
+	}
+
+	for _, tt := range queries {
+		t.Run(tt.name, func(t *testing.T) {
+			upper := strings.ToUpper(tt.query)
+			if !strings.Contains(upper, "SELECT") {
+				t.Errorf("%s does not contain SELECT statement", tt.name)
+			}
+		})
+	}
+}
+
+func TestAllQueriesContainTimeFilter(t *testing.T) {
+	lookback := 2 * time.Hour
+	billingLookback := 24 * time.Hour
+
+	queries := []struct {
+		name  string
+		query string
+	}{
+		{"BuildBillingDBUsQuery", BuildBillingDBUsQuery(billingLookback)},
+		{"BuildBillingCostEstimateQuery", BuildBillingCostEstimateQuery(billingLookback)},
+		{"BuildPriceChangeEventsQuery", BuildPriceChangeEventsQuery(billingLookback)},
+		{"BuildJobRunsQuery", BuildJobRunsQuery(lookback)},
+		{"BuildJobRunStatusQuery", BuildJobRunStatusQuery(lookback)},
+		{"BuildJobRunDurationQuery", BuildJobRunDurationQuery(lookback)},
+		{"BuildTaskRetriesQuery", BuildTaskRetriesQuery(lookback)},
+		{"BuildJobSLAMissQuery", BuildJobSLAMissQuery(lookback, 3600)},
+		{"BuildPipelineRunsQuery", BuildPipelineRunsQuery(lookback)},
+		{"BuildPipelineRunStatusQuery", BuildPipelineRunStatusQuery(lookback)},
+		{"BuildPipelineRunDurationQuery", BuildPipelineRunDurationQuery(lookback)},
+		{"BuildPipelineRetryEventsQuery", BuildPipelineRetryEventsQuery(lookback)},
+		{"BuildPipelineFreshnessLagQuery", BuildPipelineFreshnessLagQuery(lookback)},
+		{"BuildQueriesQuery", BuildQueriesQuery(lookback)},
+		{"BuildQueryErrorsQuery", BuildQueryErrorsQuery(lookback)},
+		{"BuildQueryDurationQuery", BuildQueryDurationQuery(lookback)},
+		{"BuildQueriesRunningQuery", BuildQueriesRunningQuery(lookback)},
+	}
+
+	for _, tt := range queries {
+		t.Run(tt.name, func(t *testing.T) {
+			upper := strings.ToUpper(tt.query)
+			hasTimeFilter := strings.Contains(upper, "INTERVAL") ||
+				strings.Contains(upper, "CURRENT_DATE") ||
+				strings.Contains(upper, "CURRENT_TIMESTAMP")
+
+			if !hasTimeFilter {
+				t.Errorf("%s does not contain time-based filter", tt.name)
+			}
+		})
+	}
+}
+
+func TestAllQueriesContainAggregation(t *testing.T) {
+	lookback := 2 * time.Hour
+	billingLookback := 24 * time.Hour
+
+	queries := []struct {
+		name  string
+		query string
+	}{
+		{"BuildBillingDBUsQuery", BuildBillingDBUsQuery(billingLookback)},
+		{"BuildBillingCostEstimateQuery", BuildBillingCostEstimateQuery(billingLookback)},
+		{"BuildPriceChangeEventsQuery", BuildPriceChangeEventsQuery(billingLookback)},
+		{"BuildJobRunsQuery", BuildJobRunsQuery(lookback)},
+		{"BuildJobRunStatusQuery", BuildJobRunStatusQuery(lookback)},
+		{"BuildJobRunDurationQuery", BuildJobRunDurationQuery(lookback)},
+		{"BuildTaskRetriesQuery", BuildTaskRetriesQuery(lookback)},
+		{"BuildJobSLAMissQuery", BuildJobSLAMissQuery(lookback, 3600)},
+		{"BuildPipelineRunsQuery", BuildPipelineRunsQuery(lookback)},
+		{"BuildPipelineRunStatusQuery", BuildPipelineRunStatusQuery(lookback)},
+		{"BuildPipelineRunDurationQuery", BuildPipelineRunDurationQuery(lookback)},
+		{"BuildPipelineRetryEventsQuery", BuildPipelineRetryEventsQuery(lookback)},
+		{"BuildPipelineFreshnessLagQuery", BuildPipelineFreshnessLagQuery(lookback)},
+		{"BuildQueriesQuery", BuildQueriesQuery(lookback)},
+		{"BuildQueryErrorsQuery", BuildQueryErrorsQuery(lookback)},
+		{"BuildQueryDurationQuery", BuildQueryDurationQuery(lookback)},
+		{"BuildQueriesRunningQuery", BuildQueriesRunningQuery(lookback)},
+	}
+
+	for _, tt := range queries {
+		t.Run(tt.name, func(t *testing.T) {
+			upper := strings.ToUpper(tt.query)
+			hasAggregation := strings.Contains(upper, "COUNT(") ||
+				strings.Contains(upper, "SUM(") ||
+				strings.Contains(upper, "AVG(") ||
+				strings.Contains(upper, "MAX(") ||
+				strings.Contains(upper, "MIN(") ||
+				strings.Contains(upper, "PERCENTILE_APPROX(")
+
+			if !hasAggregation {
+				t.Errorf("%s does not contain aggregation function", tt.name)
+			}
+		})
+	}
+}
+
+func TestQueriesContainCorrectSystemTable(t *testing.T) {
+	lookback := 2 * time.Hour
+	billingLookback := 24 * time.Hour
+
+	tests := []struct {
+		name      string
+		query     string
+		tableName string
+	}{
+		{"BuildBillingDBUsQuery", BuildBillingDBUsQuery(billingLookback), "system.billing.usage"},
+		{"BuildBillingCostEstimateQuery", BuildBillingCostEstimateQuery(billingLookback), "system.billing.usage"},
+		{"BuildPriceChangeEventsQuery", BuildPriceChangeEventsQuery(billingLookback), "system.billing.list_prices"},
+		{"BuildJobRunsQuery", BuildJobRunsQuery(lookback), "system.lakeflow.job_run_timeline"},
+		{"BuildJobRunStatusQuery", BuildJobRunStatusQuery(lookback), "system.lakeflow.job_run_timeline"},
+		{"BuildJobRunDurationQuery", BuildJobRunDurationQuery(lookback), "system.lakeflow.job_run_timeline"},
+		{"BuildTaskRetriesQuery", BuildTaskRetriesQuery(lookback), "system.lakeflow.job_task_run_timeline"},
+		{"BuildJobSLAMissQuery", BuildJobSLAMissQuery(lookback, 3600), "system.lakeflow.job_run_timeline"},
+		{"BuildPipelineRunsQuery", BuildPipelineRunsQuery(lookback), "system.lakeflow.pipeline_update_timeline"},
+		{"BuildPipelineRunStatusQuery", BuildPipelineRunStatusQuery(lookback), "system.lakeflow.pipeline_update_timeline"},
+		{"BuildPipelineRunDurationQuery", BuildPipelineRunDurationQuery(lookback), "system.lakeflow.pipeline_update_timeline"},
+		{"BuildPipelineRetryEventsQuery", BuildPipelineRetryEventsQuery(lookback), "system.lakeflow.pipeline_update_timeline"},
+		{"BuildPipelineFreshnessLagQuery", BuildPipelineFreshnessLagQuery(lookback), "system.lakeflow.pipeline_update_timeline"},
+		{"BuildQueriesQuery", BuildQueriesQuery(lookback), "system.query.history"},
+		{"BuildQueryErrorsQuery", BuildQueryErrorsQuery(lookback), "system.query.history"},
+		{"BuildQueryDurationQuery", BuildQueryDurationQuery(lookback), "system.query.history"},
+		{"BuildQueriesRunningQuery", BuildQueriesRunningQuery(lookback), "system.query.history"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if !strings.Contains(tt.query, tt.tableName) {
+				t.Errorf("%s does not reference expected table %s", tt.name, tt.tableName)
+			}
+		})
+	}
+}
+
+func TestQueriesContainWorkspaceID(t *testing.T) {
+	lookback := 2 * time.Hour
+	billingLookback := 24 * time.Hour
+
+	queries := []struct {
+		name          string
+		query         string
+		shouldContain bool
+	}{
+		{"BuildBillingDBUsQuery", BuildBillingDBUsQuery(billingLookback), true},
+		{"BuildBillingCostEstimateQuery", BuildBillingCostEstimateQuery(billingLookback), true},
+		{"BuildPriceChangeEventsQuery", BuildPriceChangeEventsQuery(billingLookback), false}, // No workspace_id
+		{"BuildJobRunsQuery", BuildJobRunsQuery(lookback), true},
+		{"BuildJobRunStatusQuery", BuildJobRunStatusQuery(lookback), true},
+		{"BuildJobRunDurationQuery", BuildJobRunDurationQuery(lookback), true},
+		{"BuildTaskRetriesQuery", BuildTaskRetriesQuery(lookback), true},
+		{"BuildJobSLAMissQuery", BuildJobSLAMissQuery(lookback, 3600), true},
+		{"BuildPipelineRunsQuery", BuildPipelineRunsQuery(lookback), true},
+		{"BuildPipelineRunStatusQuery", BuildPipelineRunStatusQuery(lookback), true},
+		{"BuildPipelineRunDurationQuery", BuildPipelineRunDurationQuery(lookback), true},
+		{"BuildPipelineRetryEventsQuery", BuildPipelineRetryEventsQuery(lookback), true},
+		{"BuildPipelineFreshnessLagQuery", BuildPipelineFreshnessLagQuery(lookback), true},
+		{"BuildQueriesQuery", BuildQueriesQuery(lookback), true},
+		{"BuildQueryErrorsQuery", BuildQueryErrorsQuery(lookback), true},
+		{"BuildQueryDurationQuery", BuildQueryDurationQuery(lookback), true},
+		{"BuildQueriesRunningQuery", BuildQueriesRunningQuery(lookback), true},
+	}
+
+	for _, tt := range queries {
+		t.Run(tt.name, func(t *testing.T) {
+			containsWorkspaceID := strings.Contains(tt.query, "workspace_id")
+			if tt.shouldContain && !containsWorkspaceID {
+				t.Errorf("%s should contain workspace_id but doesn't", tt.name)
+			}
+			if !tt.shouldContain && containsWorkspaceID {
+				t.Errorf("%s should not contain workspace_id but does", tt.name)
 			}
 		})
 	}

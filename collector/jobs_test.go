@@ -136,8 +136,8 @@ func TestJobsCollector_CollectJobRunStatus(t *testing.T) {
 
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "p50", "p95", "p99"}))
-	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_task_run_timeline").
-		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "task_key", "retry_count"}))
+
+		// Note: task_run_timeline query is skipped when CollectTaskRetries=false (default)
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
@@ -193,8 +193,7 @@ func TestJobsCollector_CollectJobRunDuration(t *testing.T) {
 
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").WillReturnRows(rows)
 
-	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_task_run_timeline").
-		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "task_key", "retry_count"}))
+	// Note: task_run_timeline query is skipped when CollectTaskRetries=false (default)
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
@@ -248,8 +247,7 @@ func TestJobsCollector_CollectWithError(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "status", "run_count"}))
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "p50", "p95", "p99"}))
-	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_task_run_timeline").
-		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "task_key", "retry_count"}))
+	// Note: task_run_timeline query is skipped when CollectTaskRetries=false (default)
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
@@ -300,7 +298,10 @@ func TestJobsCollector_CollectTaskRetries(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
 	metrics := NewMetricDescriptors()
-	collector := NewJobsCollector(context.Background(), db, metrics, DefaultConfig(), logger)
+	// Enable task retries collection for this test
+	cfg := DefaultConfig()
+	cfg.CollectTaskRetries = true
+	collector := NewJobsCollector(context.Background(), db, metrics, cfg, logger)
 
 	ch := make(chan prometheus.Metric, 10)
 	go func() {
@@ -332,8 +333,7 @@ func TestJobsCollector_CollectJobSLAMiss(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "status", "run_count"}))
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "p50", "p95", "p99"}))
-	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_task_run_timeline").
-		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "task_key", "retry_count"}))
+	// Note: task_run_timeline query is skipped when CollectTaskRetries=false (default)
 
 	rows := sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}).
 		AddRow("123456789", "job1", "Test Job 1", 5.0).

@@ -5,10 +5,10 @@ import "github.com/prometheus/client_golang/prometheus"
 // MetricDescriptors holds all Prometheus metric descriptors for the Databricks exporter.
 type MetricDescriptors struct {
 	// Billing & Cost Metrics (FinOps)
-	BillingDBUsTotal         *prometheus.Desc
-	BillingCostEstimateUSD   *prometheus.Desc
-	PriceChangeEvents        *prometheus.Desc
-	BillingExportErrorsTotal *prometheus.Desc
+	BillingDBUsTotal       *prometheus.Desc
+	BillingCostEstimateUSD *prometheus.Desc
+	PriceChangeEvents      *prometheus.Desc
+	BillingScrapeErrors    *prometheus.Desc
 
 	// Jobs Metrics (SRE/Platform)
 	JobRunsTotal          *prometheus.Desc
@@ -66,9 +66,9 @@ func NewMetricDescriptors() *MetricDescriptors {
 			nil,
 		),
 
-		BillingExportErrorsTotal: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "billing", "export_errors_total"),
-			"Exporter error count segmented by stage (sql, publish, etc.).",
+		BillingScrapeErrors: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "billing", "scrape_errors"),
+			"Billing scrape errors by stage (1 if error occurred this scrape, 0 otherwise).",
 			[]string{labelStage},
 			nil,
 		),
@@ -212,7 +212,7 @@ func (m *MetricDescriptors) Describe(ch chan<- *prometheus.Desc) {
 	ch <- m.BillingDBUsTotal
 	ch <- m.BillingCostEstimateUSD
 	ch <- m.PriceChangeEvents
-	ch <- m.BillingExportErrorsTotal
+	ch <- m.BillingScrapeErrors
 
 	// Jobs
 	ch <- m.JobRunsTotal

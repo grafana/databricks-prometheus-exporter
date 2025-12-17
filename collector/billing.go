@@ -37,7 +37,7 @@ func (c *BillingCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.metrics.BillingDBUsTotal
 	ch <- c.metrics.BillingCostEstimateUSD
 	ch <- c.metrics.PriceChangeEvents
-	ch <- c.metrics.BillingExportErrorsTotal
+	ch <- c.metrics.BillingScrapeErrors
 	ch <- c.metrics.ScrapeStatus
 }
 
@@ -224,11 +224,11 @@ func (c *BillingCollector) collectPriceChangeEvents(ch chan<- prometheus.Metric)
 	return rows.Err()
 }
 
-// emitError emits a billing export error metric for the given stage.
+// emitError emits a billing scrape error metric for the given stage.
 func (c *BillingCollector) emitError(ch chan<- prometheus.Metric, stage string) {
 	ch <- prometheus.MustNewConstMetric(
-		c.metrics.BillingExportErrorsTotal,
-		prometheus.CounterValue,
+		c.metrics.BillingScrapeErrors,
+		prometheus.GaugeValue,
 		1,
 		stage,
 	)

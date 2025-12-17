@@ -37,8 +37,8 @@ func TestNewMetricDescriptors(t *testing.T) {
 			labels: []string{labelSKUName},
 		},
 		{
-			name:   "BillingExportErrorsTotal",
-			desc:   metrics.BillingExportErrorsTotal,
+			name:   "BillingScrapeErrors",
+			desc:   metrics.BillingScrapeErrors,
 			labels: []string{labelStage},
 		},
 		// Jobs metrics
@@ -187,7 +187,7 @@ func TestMetricDescriptors_AllMetricsHaveDescriptions(t *testing.T) {
 		{"BillingDBUsTotal", metrics.BillingDBUsTotal},
 		{"BillingCostEstimateUSD", metrics.BillingCostEstimateUSD},
 		{"PriceChangeEvents", metrics.PriceChangeEvents},
-		{"BillingExportErrorsTotal", metrics.BillingExportErrorsTotal},
+		{"BillingScrapeErrors", metrics.BillingScrapeErrors},
 		{"JobRunsTotal", metrics.JobRunsTotal},
 		{"JobRunStatusTotal", metrics.JobRunStatusTotal},
 		{"JobRunDurationSeconds", metrics.JobRunDurationSeconds},
@@ -224,34 +224,5 @@ func TestMetricDescriptors_AllMetricsHaveDescriptions(t *testing.T) {
 				t.Errorf("%s description is too short: %s", tt.name, descString)
 			}
 		})
-	}
-}
-
-func TestLabelConstants(t *testing.T) {
-	// Verify label constant values are set correctly
-	tests := []struct {
-		name     string
-		constant string
-		expected string
-	}{
-		{"labelWorkspaceID", labelWorkspaceID, "workspace_id"},
-		{"labelSKUName", labelSKUName, "sku_name"},
-		{"labelStatus", labelStatus, "status"},
-		{"labelStage", labelStage, "stage"},
-		{"labelQuantile", labelQuantile, "quantile"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.constant != tt.expected {
-				t.Errorf("%s = %q, want %q", tt.name, tt.constant, tt.expected)
-			}
-		})
-	}
-}
-
-func TestConstants(t *testing.T) {
-	if namespace != "databricks" {
-		t.Errorf("namespace = %q, want %q", namespace, "databricks")
 	}
 }

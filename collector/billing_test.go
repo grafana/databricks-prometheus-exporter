@@ -260,9 +260,9 @@ func TestBillingCollector_CollectEmitsErrorMetric(t *testing.T) {
 			t.Fatalf("failed to write metric: %v", err)
 		}
 
-		// Verify it's a counter
-		if pb.Counter == nil {
-			t.Error("expected counter metric")
+		// Verify it's a gauge (error indicator for this scrape cycle)
+		if pb.Gauge == nil {
+			t.Error("expected gauge metric")
 			continue
 		}
 
@@ -279,8 +279,8 @@ func TestBillingCollector_CollectEmitsErrorMetric(t *testing.T) {
 		}
 
 		// Verify value is 1
-		if pb.Counter.GetValue() != 1 {
-			t.Errorf("expected error count of 1, got %f", pb.Counter.GetValue())
+		if pb.Gauge.GetValue() != 1 {
+			t.Errorf("expected error value of 1, got %f", pb.Gauge.GetValue())
 		}
 	}
 
