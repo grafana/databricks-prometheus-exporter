@@ -3,6 +3,7 @@ package collector
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestQueries_NotEmpty(t *testing.T) {
@@ -233,29 +234,50 @@ func TestQueries_ContainAggregation(t *testing.T) {
 	}
 }
 
-func TestTimeWindowConstants(t *testing.T) {
+// TestDurationToSQLInterval tests the duration to SQL interval conversion function.
+// Databricks SQL accepts both singular and plural forms (e.g., "1 HOUR" and "1 HOURS"),
+// but we use grammatically correct forms for clarity.
+func TestDurationToSQLInterval(t *testing.T) {
 	tests := []struct {
 		name     string
-		constant string
+		duration time.Duration
 		expected string
 	}{
-		{"BillingWindow", BillingWindow, "1 DAY"},
-		{"JobsWindow", JobsWindow, "2 HOURS"},
-		{"QueriesWindow", QueriesWindow, "1 HOURS"},
-		{"PricesWindow", PricesWindow, "1 DAY"},
+		// Days - singular and plural
+		{"1 day", 24 * time.Hour, "1 DAY"},
+		{"2 days", 48 * time.Hour, "2 DAYS"},
+		{"3 days", 72 * time.Hour, "3 DAYS"},
+		{"7 days", 7 * 24 * time.Hour, "7 DAYS"},
+		{"30 days", 30 * 24 * time.Hour, "30 DAYS"},
+		{"90 days", 90 * 24 * time.Hour, "90 DAYS"},
+
+		// Hours - singular and plural
+		{"1 hour", 1 * time.Hour, "1 HOUR"},
+		{"2 hours", 2 * time.Hour, "2 HOURS"},
+		{"12 hours", 12 * time.Hour, "12 HOURS"},
+		{"23 hours", 23 * time.Hour, "23 HOURS"},
+
+		// Edge case: 25 hours should be hours, not days
+		{"25 hours", 25 * time.Hour, "25 HOURS"},
+
+		// Minutes - singular and plural
+		{"1 minute", 1 * time.Minute, "1 MINUTE"},
+		{"30 minutes", 30 * time.Minute, "30 MINUTES"},
+		{"59 minutes", 59 * time.Minute, "59 MINUTES"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.constant != tt.expected {
-				t.Errorf("%s = %q, want %q", tt.name, tt.constant, tt.expected)
+			result := durationToSQLInterval(tt.duration)
+			if result != tt.expected {
+				t.Errorf("durationToSQLInterval(%v) = %q, want %q", tt.duration, result, tt.expected)
 			}
 		})
 	}
 }
 
 func TestQueries_UseConfiguredWindows(t *testing.T) {
-	// Verify queries use the time window constants where appropriate
+	// Verify legacy queries use the expected time windows
 	tests := []struct {
 		queryName string
 		query     string
@@ -275,6 +297,136 @@ func TestQueries_UseConfiguredWindows(t *testing.T) {
 		t.Run(tt.queryName, func(t *testing.T) {
 			if !strings.Contains(tt.query, tt.window) {
 				t.Errorf("%s should contain time window %q", tt.queryName, tt.window)
+			}
+		})
+	}
+}
+
+// ===== Build* Function Tests =====
+
+func TestBuildBillingDBUsQuery(t *testing.T) {
+	tests := []struct {
+		name           string
+		lookback       time.Duration
+		expectedWindow string
+	}{
+		{"1 day lookback", 24 * time.Hour, "INTERVAL 1 DAY"},
+		{"2 days lookback", 48 * time.Hour, "INTERVAL 2 DAYS"},
+		{"7 days lookback", 7 * 24 * time.Hour, "INTERVAL 7 DAYS"},
+		{"30 days lookback", 30 * 24 * time.Hour, "INTERVAL 30 DAYS"},
+		// Edge case: 25 hours should use hours, not days
+		{"25 hours lookback", 25 * time.Hour, "INTERVAL 25 HOURS"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := BuildBillingDBUsQuery(tt.lookback)
+			if !strings.Contains(query, tt.expectedWindow) {
+				t.Errorf("BuildBillingDBUsQuery(%v) should contain %q", tt.lookback, tt.expectedWindow)
+			}
+			// Verify required elements
+			if !strings.Contains(query, "system.billing.usage") {
+				t.Error("Query should reference system.billing.usage")
+			}
+			if !strings.Contains(query, "workspace_id") {
+				t.Error("Query should select workspace_id")
+			}
+			if !strings.Contains(query, "sku_name") {
+				t.Error("Query should select sku_name")
+			}
+		})
+	}
+}
+
+func TestBuildBillingCostEstimateQuery(t *testing.T) {
+	tests := []struct {
+		name           string
+		lookback       time.Duration
+		expectedWindow string
+	}{
+		{"1 day lookback", 24 * time.Hour, "INTERVAL 1 DAY"},
+		{"7 days lookback", 7 * 24 * time.Hour, "INTERVAL 7 DAYS"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := BuildBillingCostEstimateQuery(tt.lookback)
+			if !strings.Contains(query, tt.expectedWindow) {
+				t.Errorf("BuildBillingCostEstimateQuery(%v) should contain %q", tt.lookback, tt.expectedWindow)
+			}
+			// Verify joins pricing data
+			if !strings.Contains(query, "system.billing.list_prices") {
+				t.Error("Query should reference system.billing.list_prices")
+			}
+		})
+	}
+}
+
+func TestBuildPriceChangeEventsQuery(t *testing.T) {
+	tests := []struct {
+		name           string
+		lookback       time.Duration
+		expectedWindow string
+	}{
+		{"1 day lookback", 24 * time.Hour, "INTERVAL 1 DAY"},
+		{"90 days lookback", 90 * 24 * time.Hour, "INTERVAL 90 DAYS"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := BuildPriceChangeEventsQuery(tt.lookback)
+			if !strings.Contains(query, tt.expectedWindow) {
+				t.Errorf("BuildPriceChangeEventsQuery(%v) should contain %q", tt.lookback, tt.expectedWindow)
+			}
+			if !strings.Contains(query, "price_start_time") {
+				t.Error("Query should filter by price_start_time")
+			}
+		})
+	}
+}
+
+func TestBuildJobRunsQuery(t *testing.T) {
+	tests := []struct {
+		name           string
+		lookback       time.Duration
+		expectedWindow string
+	}{
+		{"1 hour lookback", 1 * time.Hour, "INTERVAL 1 HOUR"},
+		{"2 hours lookback", 2 * time.Hour, "INTERVAL 2 HOURS"},
+		{"24 hours lookback", 24 * time.Hour, "INTERVAL 1 DAY"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := BuildJobRunsQuery(tt.lookback)
+			if !strings.Contains(query, tt.expectedWindow) {
+				t.Errorf("BuildJobRunsQuery(%v) should contain %q", tt.lookback, tt.expectedWindow)
+			}
+			if !strings.Contains(query, "system.lakeflow.job_run_timeline") {
+				t.Error("Query should reference system.lakeflow.job_run_timeline")
+			}
+		})
+	}
+}
+
+func TestBuildQueriesQuery(t *testing.T) {
+	tests := []struct {
+		name           string
+		lookback       time.Duration
+		expectedWindow string
+	}{
+		{"1 hour lookback", 1 * time.Hour, "INTERVAL 1 HOUR"},
+		{"2 hours lookback", 2 * time.Hour, "INTERVAL 2 HOURS"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := BuildQueriesQuery(tt.lookback)
+			if !strings.Contains(query, tt.expectedWindow) {
+				t.Errorf("BuildQueriesQuery(%v) should contain %q", tt.lookback, tt.expectedWindow)
+			}
+			if !strings.Contains(query, "system.query.history") {
+				t.Error("Query should reference system.query.history")
 			}
 		})
 	}

@@ -85,149 +85,149 @@ Contains execution history for all SQL queries run in the workspace. Includes qu
 
 ## Metrics
 
-The exporter collects 18 metrics across four categories: billing, jobs, pipelines, and SQL queries.
+The exporter collects metrics across four categories: billing, jobs, pipelines, and SQL queries.
 
-## Billing and Cost Metrics
+## Billing and cost metrics
 
 These metrics help with FinOps and cost tracking.
 
 ### `databricks_billing_dbus_total`
-Daily DBU consumption per workspace and SKU over the last 30 days.
+Sliding window DBU consumption per workspace and SKU (default: last 24 hours).
 
 - **Source table:** `system.billing.usage`
-- **Type:** Counter
-- **Labels:** `workspace_id`, `sku_name`, `usage_date`
+- **Type:** Gauge (sliding window count that can decrease as the window moves)
+- **Labels:** `workspace_id`, `sku_name`
 
 ### `databricks_billing_cost_estimate_usd`
-Estimated cost in USD calculated by joining usage with pricing data.
+Estimated cost in USD calculated by joining usage with pricing data (sliding window, default: last 24 hours).
 
 - **Source tables:** `system.billing.usage`, `system.billing.list_prices`
-- **Type:** Gauge
-- **Labels:** `workspace_id`, `sku_name`, `usage_date`
+- **Type:** Gauge (sliding window value that can decrease as the window moves)
+- **Labels:** `workspace_id`, `sku_name`
 
 ### `databricks_price_change_events`
-Count of price changes per SKU over the last 90 days. Useful for attributing cost changes to pricing vs. usage increases.
+Count of price changes per SKU within the billing lookback window (default: last 24 hours). Useful for attributing cost changes to pricing vs. usage increases.
 
 - **Source table:** `system.billing.list_prices`
-- **Type:** Counter
+- **Type:** Gauge (sliding window count that can decrease as the window moves)
 - **Labels:** `sku_name`
 
-## Job Metrics
+## Job metrics
 
-These metrics track Databricks job executions.
+These metrics track Databricks job executions (sliding window, default: last 2 hours).
 
 ### `databricks_job_runs_total`
-Total number of job runs in the last 24 hours.
+Job runs per workspace and job within the lookback window.
 
 - **Source table:** `system.lakeflow.job_run_timeline`
-- **Type:** Counter
-- **Labels:** `workspace_id`
+- **Type:** Gauge (sliding window count that can decrease as the window moves)
+- **Labels:** `workspace_id`, `job_id`, `job_name`
 
-### `databricks_job_run_status`
+### `databricks_job_run_status_total`
 Job run counts broken down by result state.
 
 - **Source table:** `system.lakeflow.job_run_timeline`
-- **Type:** Gauge
-- **Labels:** `workspace_id`, `status`
+- **Type:** Gauge (sliding window count that can decrease as the window moves)
+- **Labels:** `workspace_id`, `job_id`, `job_name`, `status`
 
 ### `databricks_job_run_duration_seconds`
 Job run duration quantiles (p50, p95, p99).
 
 - **Source table:** `system.lakeflow.job_run_timeline`
 - **Type:** Gauge
-- **Labels:** `workspace_id`, `quantile`
+- **Labels:** `workspace_id`, `job_id`, `job_name`, `quantile`
 
 ### `databricks_task_retries_total`
-Count of task retry attempts. Detected by finding the same task_key running multiple times within a job_run_id.
+Count of task retry attempts within the lookback window.
 
 - **Source table:** `system.lakeflow.job_task_run_timeline`
-- **Type:** Counter
-- **Labels:** `workspace_id`
+- **Type:** Gauge (sliding window count that can decrease as the window moves)
+- **Labels:** `workspace_id`, `job_id`, `job_name`, `task_key`
 
 ### `databricks_job_sla_miss_total`
-Number of jobs that exceeded 1 hour (3600 seconds) in the last 24 hours.
+Jobs that exceeded the SLA threshold (default: 1 hour) within the lookback window.
 
 - **Source table:** `system.lakeflow.job_run_timeline`
-- **Type:** Counter
-- **Labels:** `workspace_id`
+- **Type:** Gauge (sliding window count that can decrease as the window moves)
+- **Labels:** `workspace_id`, `job_id`, `job_name`
 
-## Pipeline Metrics
+## Pipeline metrics
 
-These metrics track Delta Live Tables pipeline executions.
+These metrics track Delta Live Tables (DLT) pipeline executions (sliding window, default: last 2 hours).
 
 ### `databricks_pipeline_runs_total`
-Total number of pipeline update runs in the last 24 hours.
+Pipeline update runs per workspace and pipeline within the lookback window.
 
 - **Source table:** `system.lakeflow.pipeline_update_timeline`
-- **Type:** Counter
-- **Labels:** `workspace_id`
+- **Type:** Gauge (sliding window count that can decrease as the window moves)
+- **Labels:** `workspace_id`, `pipeline_id`, `pipeline_name`
 
-### `databricks_pipeline_run_status`
+### `databricks_pipeline_run_status_total`
 Pipeline run counts broken down by result state.
 
 - **Source table:** `system.lakeflow.pipeline_update_timeline`
-- **Type:** Gauge
-- **Labels:** `workspace_id`, `status`
+- **Type:** Gauge (sliding window count that can decrease as the window moves)
+- **Labels:** `workspace_id`, `pipeline_id`, `pipeline_name`, `status`
 
 ### `databricks_pipeline_run_duration_seconds`
 Pipeline run duration quantiles (p50, p95, p99).
 
 - **Source table:** `system.lakeflow.pipeline_update_timeline`
 - **Type:** Gauge
-- **Labels:** `workspace_id`, `quantile`
+- **Labels:** `workspace_id`, `pipeline_id`, `pipeline_name`, `quantile`
 
 ### `databricks_pipeline_retry_events_total`
-Count of pipeline retry events. Detected when multiple request_ids exist for the same update_id.
+Pipeline retry events within the lookback window.
 
 - **Source table:** `system.lakeflow.pipeline_update_timeline`
-- **Type:** Counter
-- **Labels:** `workspace_id`
+- **Type:** Gauge (sliding window count that can decrease as the window moves)
+- **Labels:** `workspace_id`, `pipeline_id`, `pipeline_name`
 
 ### `databricks_pipeline_freshness_lag_seconds`
-Average time lag between pipeline completion and current time. Can be used to track data freshness.
+Average time lag between pipeline completion and current time.
 
 - **Source table:** `system.lakeflow.pipeline_update_timeline`
 - **Type:** Gauge
-- **Labels:** `workspace_id`, `stage`
+- **Labels:** `workspace_id`, `pipeline_id`, `pipeline_name`
 
-## SQL Query Metrics
+## SQL query metrics
 
-These metrics track SQL query performance across warehouses and serverless compute.
+These metrics track SQL query performance across warehouses and serverless compute (sliding window, default: last 1 hour).
 
 ### `databricks_queries_total`
-Total number of SQL queries executed in the last hour.
+SQL queries executed per workspace and warehouse within the lookback window.
 
 - **Source table:** `system.query.history`
-- **Type:** Counter
-- **Labels:** `workspace_id`
+- **Type:** Gauge (sliding window count that can decrease as the window moves)
+- **Labels:** `workspace_id`, `warehouse_id`
 
 ### `databricks_query_errors_total`
-Number of failed queries in the last hour.
+Failed queries per workspace and warehouse within the lookback window.
 
 - **Source table:** `system.query.history`
-- **Type:** Counter
-- **Labels:** `workspace_id`
+- **Type:** Gauge (sliding window count that can decrease as the window moves)
+- **Labels:** `workspace_id`, `warehouse_id`
 
 ### `databricks_query_duration_seconds`
 Query duration quantiles (p50, p95, p99) in seconds.
 
 - **Source table:** `system.query.history`
 - **Type:** Gauge
-- **Labels:** `workspace_id`, `quantile`
+- **Labels:** `workspace_id`, `warehouse_id`, `quantile`
 
 ### `databricks_queries_running`
-Estimated count of concurrent queries. Calculated by finding overlapping query execution intervals.
+Estimated count of concurrent queries (derived from overlapping execution intervals).
 
 - **Source table:** `system.query.history`
 - **Type:** Gauge
-- **Labels:** `workspace_id`
+- **Labels:** `workspace_id`, `warehouse_id`
 
-## System Metrics
+## System metrics
 
 ### `databricks_up`
-Indicates whether the exporter successfully connected to Databricks and collected metrics.
+Indicates whether the exporter successfully connected to Databricks. Note: This metric indicates exporter health, not Databricks availability. Individual query failures are logged but do not affect this metric.
 
 - **Type:** Gauge
 - **Values:**
-  - `1` - Connection successful, metrics collected
-  - `0` - Connection failed or unable to collect metrics
+  - `1` - Exporter successfully established database connection
+  - `0` - Exporter failed to establish database connection

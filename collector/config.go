@@ -18,6 +18,7 @@ const (
 	DefaultPipelinesLookback   = 2 * time.Hour
 	DefaultQueriesLookback     = 1 * time.Hour
 	DefaultSLAThresholdSeconds = SecondsPerHour
+	DefaultTableCheckInterval  = 10 // Number of scrapes between table availability checks
 )
 
 // Config holds the configuration for the Databricks exporter.
@@ -42,6 +43,9 @@ type Config struct {
 
 	// Cardinality controls
 	CollectTaskRetries bool // Collect task retry metrics (high cardinality due to task_key)
+
+	// Table availability settings
+	TableCheckInterval int // Number of scrapes between table availability checks (for optional tables like pipelines)
 }
 
 var (
@@ -62,6 +66,7 @@ func DefaultConfig() *Config {
 		QueriesLookback:     DefaultQueriesLookback,
 		SLAThresholdSeconds: DefaultSLAThresholdSeconds,
 		CollectTaskRetries:  false,
+		TableCheckInterval:  DefaultTableCheckInterval,
 	}
 }
 

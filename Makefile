@@ -97,10 +97,17 @@ clean: ## Remove build artifacts
 # ============================================================================
 # Integration tests (require Databricks credentials)
 # ============================================================================
+#
+# These are software integration tests (https://en.wikipedia.org/wiki/Integration_testing)
+# that verify the exporter works correctly with a real Databricks instance.
+# They test the integration between the exporter code and Databricks APIs.
+#
+# NOTE: This is NOT a "Grafana Cloud Integration" test. It's a standard software
+# engineering integration test that validates the exporter + Databricks connection.
 
 .PHONY: test-integration
-test-integration: ## Run integration tests (requires Databricks credentials in env)
-	@echo ">> running integration tests"
+test-integration: ## Run integration tests against real Databricks (requires credentials in env)
+	@echo ">> running integration tests (exporter + Databricks connection)"
 	$(GO) test -tags=integration -v -timeout 10m ./collector/...
 
 .PHONY: test-integration-fast

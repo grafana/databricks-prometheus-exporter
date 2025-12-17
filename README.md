@@ -12,19 +12,25 @@ This exporter connects to a Databricks SQL Warehouse and queries Databricks Syst
 
 The exporter may be configured through its command line flags:
 
-```
-  -h, --help                              Show context-sensitive help (also try --help-long and --help-man).
-      --web.listen-address=:9976 ...      Addresses on which to expose metrics and web interface. Repeatable for multiple addresses.
-      --web.config.file=""                Path to configuration file that can enable TLS or authentication.
-      --web.telemetry-path="/metrics"     Path under which to expose metrics.
-      --server-hostname=HOSTNAME          The Databricks workspace hostname (e.g., dbc-abc123-def456.cloud.databricks.com).
-      --warehouse-http-path=PATH          The HTTP path of the SQL Warehouse (e.g., /sql/1.0/warehouses/abc123def456).
-      --client-id=CLIENT-ID               The OAuth2 Client ID (Application ID) for Service Principal authentication.
-      --client-secret=CLIENT-SECRET       The OAuth2 Client Secret for Service Principal authentication.
-      --version                           Show application version.
-      --log.level=info                    Only log messages with the given severity or above. One of: [debug, info, warn, error]
-      --log.format=logfmt                 Output format of log messages. One of: [logfmt, json]
-```
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--web.listen-address` | `:9976` | Addresses on which to expose metrics and web interface. Repeatable for multiple addresses. |
+| `--web.config.file` | `""` | Path to configuration file that can enable TLS or authentication. |
+| `--web.telemetry-path` | `/metrics` | Path under which to expose metrics. |
+| `--server-hostname` | *required* | The Databricks workspace hostname (e.g., `dbc-abc123.cloud.databricks.com`). |
+| `--warehouse-http-path` | *required* | The HTTP path of the SQL Warehouse (e.g., `/sql/1.0/warehouses/abc123`). |
+| `--client-id` | *required* | The OAuth2 Client ID (Application ID) for Service Principal authentication. |
+| `--client-secret` | *required* | The OAuth2 Client Secret for Service Principal authentication. |
+| `--query-timeout` | `5m` | Timeout for database queries. |
+| `--billing-lookback` | `24h` | How far back to look for billing data. |
+| `--jobs-lookback` | `2h` | How far back to look for job runs. |
+| `--pipelines-lookback` | `2h` | How far back to look for pipeline runs. |
+| `--queries-lookback` | `1h` | How far back to look for SQL warehouse queries. |
+| `--sla-threshold` | `3600` | Duration threshold (in seconds) for job SLA miss detection. |
+| `--collect-task-retries` | `false` | Collect task retry metrics (high cardinality due to `task_key` label). |
+| `--table-check-interval` | `10` | Number of scrapes between table availability checks (for optional tables like pipelines). |
+| `--log.level` | `info` | Only log messages with the given severity or above. One of: `debug`, `info`, `warn`, `error`. |
+| `--log.format` | `logfmt` | Output format of log messages. One of: `logfmt`, `json`. |
 
 Example usage:
 
@@ -36,17 +42,25 @@ Example usage:
   --client-secret=<your-client-secret-here>
 ```
 
-### Environment Variables
+### Environment variables
 
 Alternatively, the exporter may be configured using environment variables:
 
-| Name                                           | Description                                                                                      |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| DATABRICKS_EXPORTER_SERVER_HOSTNAME            | The Databricks workspace hostname (e.g., dbc-abc123-def456.cloud.databricks.com).              |
-| DATABRICKS_EXPORTER_WAREHOUSE_HTTP_PATH        | The HTTP path of the SQL Warehouse (e.g., /sql/1.0/warehouses/abc123def456).                   |
-| DATABRICKS_EXPORTER_CLIENT_ID                  | The OAuth2 Client ID (Application ID) for Service Principal authentication.                     |
-| DATABRICKS_EXPORTER_CLIENT_SECRET              | The OAuth2 Client Secret for Service Principal authentication.                                  |
-| DATABRICKS_EXPORTER_WEB_TELEMETRY_PATH         | Path under which to expose metrics (default: /metrics).                                         |
+| Name | Description |
+|------|-------------|
+| `DATABRICKS_EXPORTER_SERVER_HOSTNAME` | The Databricks workspace hostname. |
+| `DATABRICKS_EXPORTER_WAREHOUSE_HTTP_PATH` | The HTTP path of the SQL Warehouse. |
+| `DATABRICKS_EXPORTER_CLIENT_ID` | The OAuth2 Client ID for Service Principal authentication. |
+| `DATABRICKS_EXPORTER_CLIENT_SECRET` | The OAuth2 Client Secret for Service Principal authentication. |
+| `DATABRICKS_EXPORTER_WEB_TELEMETRY_PATH` | Path under which to expose metrics. |
+| `DATABRICKS_EXPORTER_QUERY_TIMEOUT` | Timeout for database queries. |
+| `DATABRICKS_EXPORTER_BILLING_LOOKBACK` | How far back to look for billing data. |
+| `DATABRICKS_EXPORTER_JOBS_LOOKBACK` | How far back to look for job runs. |
+| `DATABRICKS_EXPORTER_PIPELINES_LOOKBACK` | How far back to look for pipeline runs. |
+| `DATABRICKS_EXPORTER_QUERIES_LOOKBACK` | How far back to look for SQL warehouse queries. |
+| `DATABRICKS_EXPORTER_SLA_THRESHOLD` | Duration threshold (in seconds) for job SLA miss detection. |
+| `DATABRICKS_EXPORTER_COLLECT_TASK_RETRIES` | Collect task retry metrics (set to `true` to enable). |
+| `DATABRICKS_EXPORTER_TABLE_CHECK_INTERVAL` | Number of scrapes between table availability checks. |
 
 Example usage:
 

@@ -9,17 +9,29 @@ import (
 // See: https://docs.databricks.com/aws/en/admin/system-tables
 
 // durationToSQLInterval converts a Go duration to a Databricks SQL INTERVAL string.
-// Examples: 24h -> "24 HOURS", 2h -> "2 HOURS", 30m -> "30 MINUTES"
+// Uses correct singular/plural grammar (1 HOUR vs 2 HOURS, 1 DAY vs 2 DAYS).
+// Note: Databricks SQL accepts both singular and plural forms (e.g., "1 HOUR" and "1 HOURS"
+// are both valid), but we use grammatically correct forms for clarity.
+// Examples: 24h -> "1 DAY", 48h -> "2 DAYS", 1h -> "1 HOUR", 2h -> "2 HOURS", 30m -> "30 MINUTES"
 func durationToSQLInterval(d time.Duration) string {
 	hours := int(d.Hours())
 	if hours >= 24 && hours%24 == 0 {
 		days := hours / 24
-		return fmt.Sprintf("%d DAY", days)
+		if days == 1 {
+			return "1 DAY"
+		}
+		return fmt.Sprintf("%d DAYS", days)
+	}
+	if hours == 1 {
+		return "1 HOUR"
 	}
 	if hours > 0 {
 		return fmt.Sprintf("%d HOURS", hours)
 	}
 	minutes := int(d.Minutes())
+	if minutes == 1 {
+		return "1 MINUTE"
+	}
 	return fmt.Sprintf("%d MINUTES", minutes)
 }
 
@@ -797,12 +809,4 @@ const (
 		)
 		GROUP BY workspace_id, warehouse_id
 	`
-)
-
-// Time window constants for configurable lookback periods
-const (
-	PricesWindow  = "1 DAY"
-	BillingWindow = "1 DAY"
-	JobsWindow    = "2 HOURS"
-	QueriesWindow = "1 HOURS"
 )

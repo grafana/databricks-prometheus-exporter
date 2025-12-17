@@ -41,6 +41,9 @@ var (
 
 	// Cardinality controls
 	collectTaskRetries = kingpin.Flag("collect-task-retries", "Collect task retry metrics (high cardinality due to task_key label).").Default("false").Envar("DATABRICKS_EXPORTER_COLLECT_TASK_RETRIES").Bool()
+
+	// Table availability settings
+	tableCheckInterval = kingpin.Flag("table-check-interval", "Number of scrapes between table availability checks (for optional tables like pipelines).").Default("10").Envar("DATABRICKS_EXPORTER_TABLE_CHECK_INTERVAL").Int()
 )
 
 const (
@@ -85,6 +88,9 @@ func main() {
 
 		// Cardinality controls
 		CollectTaskRetries: *collectTaskRetries,
+
+		// Table availability settings
+		TableCheckInterval: *tableCheckInterval,
 	}
 
 	if err := c.Validate(); err != nil {

@@ -13,13 +13,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const (
-	// tableCheckInterval defines how many scrapes to skip before re-checking table availability.
-	// The system.lakeflow.pipeline_update_timeline table may not exist for all workspaces.
-	// We check once, then wait 10 scrapes before retrying to avoid repeated failed queries.
-	tableCheckInterval = 10
-)
-
 // PipelinesCollector collects pipeline-related metrics from Databricks.
 type PipelinesCollector struct {
 	logger log.Logger
@@ -112,7 +105,7 @@ func (c *PipelinesCollector) shouldCheckTable() bool {
 	}
 
 	// If table was unavailable, check periodically
-	if !*c.tableAvailable && c.tableCheckCounter >= tableCheckInterval {
+	if !*c.tableAvailable && c.tableCheckCounter >= c.config.TableCheckInterval {
 		return true
 	}
 
@@ -177,7 +170,7 @@ func (c *PipelinesCollector) checkTableAvailability() {
 			level.Debug(c.logger).Log(
 				"msg", "Verified table is unavailable",
 				"table", "system.lakeflow.pipeline_update_timeline",
-				"will_retry_in_scrapes", tableCheckInterval,
+				"will_retry_in_scrapes", c.config.TableCheckInterval,
 			)
 		} else {
 			// Some other error - log it and assume unavailable for now

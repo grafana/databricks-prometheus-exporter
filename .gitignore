@@ -36,6 +36,7 @@ go.work.sum
 # Binaries
 databricks-exporter
 bin/
+data-alloy/
 
 # Test & development scripts
 test_tables.sh
