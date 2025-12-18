@@ -16,7 +16,8 @@ function(this) {
       unit: 's',
       sources: {
         prometheus: {
-          expr: 'max by (warehouse_id) (databricks_query_duration_seconds{%(queriesSelector)s, quantile="0.95"})',
+          expr: 'max by (warehouse_id) (databricks_query_duration_seconds_sliding{%(queriesSelector)s, quantile="0.95"})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: 'Warehouse - {{warehouse_id}}',
         },
       },
@@ -25,12 +26,13 @@ function(this) {
     queryErrors: {
       name: 'Query errors',
       nameShort: 'Errors',
-      description: 'Query errors (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Query errors.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'sum by (workspace_id) (increase(databricks_query_errors_total{%(queriesSelector)s}[$__interval:] offset $__interval))',
+          expr: 'sum by (workspace_id) (databricks_query_errors_sliding{%(queriesSelector)s})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{workspace_id}}',
         },
       },
@@ -39,12 +41,13 @@ function(this) {
     queryLoad: {
       name: 'Query load',
       nameShort: 'Queries',
-      description: 'Total queries executed (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Total queries in the sliding window.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'sum by (' + aggregationLabels + ') (increase(databricks_queries_total{%(queriesSelector)s}[$__interval:] offset $__interval))',
+          expr: 'sum by (' + aggregationLabels + ') (databricks_queries_sliding{%(queriesSelector)s})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: 'Queries',
         },
       },
@@ -53,15 +56,17 @@ function(this) {
     queryErrorRateAggregate: {
       name: 'Query error rate (aggregate)',
       nameShort: 'Error %',
-      description: 'Aggregate query error percentage across all workspaces (adapts to dashboard time range).',
+      description: 'Aggregate query error percentage across all workspaces.',
       type: 'raw',
       unit: 'percentunit',
       sources: {
         prometheus: {
           expr: |||
-            sum (increase(databricks_query_errors_total{%(queriesSelector)s}[$__interval:] offset $__interval))
-            /
-            sum (increase(databricks_queries_total{%(queriesSelector)s}[$__interval:] offset $__interval))
+            last_over_time((
+              sum(databricks_query_errors_sliding{%(queriesSelector)s})
+              /
+              sum(databricks_queries_sliding{%(queriesSelector)s})
+            )[30m:])
           ||| % {
             queriesSelector: '%(queriesSelector)s',
           },
@@ -78,7 +83,8 @@ function(this) {
       unit: 's',
       sources: {
         prometheus: {
-          expr: 'max(databricks_query_duration_seconds{%(queriesSelector)s, quantile="0.95"})',
+          expr: 'max(databricks_query_duration_seconds_sliding{%(queriesSelector)s, quantile="0.95"})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: 'p95 latency',
         },
       },
@@ -92,7 +98,8 @@ function(this) {
       unit: 's',
       sources: {
         prometheus: {
-          expr: 'max(databricks_query_duration_seconds{%(queriesSelector)s, quantile="0.50"})',
+          expr: 'max(databricks_query_duration_seconds_sliding{%(queriesSelector)s, quantile="0.50"})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: 'Current p50',
         },
       },
@@ -106,7 +113,7 @@ function(this) {
       unit: 's',
       sources: {
         prometheus: {
-          expr: 'max(quantile_over_time(0.5, databricks_query_duration_seconds{%(queriesSelector)s, quantile="0.50"}[7d]))',
+          expr: 'max(quantile_over_time(0.5, databricks_query_duration_seconds_sliding{%(queriesSelector)s, quantile="0.50"}[7d]))',
           legendCustomTemplate: '7 days median',
         },
       },
@@ -120,7 +127,8 @@ function(this) {
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'max(databricks_queries_running{%(queriesSelector)s})',
+          expr: 'max(databricks_queries_running_sliding{%(queriesSelector)s})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: 'Total queries running',
         },
       },
@@ -134,7 +142,7 @@ function(this) {
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'max(quantile_over_time(0.95, databricks_queries_running{%(queriesSelector)s}[7d]))',
+          expr: 'max(quantile_over_time(0.95, databricks_queries_running_sliding{%(queriesSelector)s}[7d]))',
           legendCustomTemplate: '7d baseline',
         },
       },
@@ -149,13 +157,15 @@ function(this) {
       sources: {
         prometheus: {
           expr: |||
-            (
-              sum by (%(aggregationLabels)s) (increase(databricks_queries_total{%(queriesSelector)s}[24h] offset 1d))
-              -
-              sum by (%(aggregationLabels)s) (increase(databricks_queries_total{%(queriesSelector)s}[24h] offset 2d))
-            )
-            /
-            sum by (%(aggregationLabels)s) (increase(databricks_queries_total{%(queriesSelector)s}[24h] offset 2d))
+            last_over_time((
+              (
+                sum by (%(aggregationLabels)s) (databricks_queries_sliding{%(queriesSelector)s} offset 1d)
+                -
+                sum by (%(aggregationLabels)s) (databricks_queries_sliding{%(queriesSelector)s} offset 2d)
+              )
+              /
+              sum by (%(aggregationLabels)s) (databricks_queries_sliding{%(queriesSelector)s} offset 2d)
+            )[30m:])
           ||| % {
             aggregationLabels: aggregationLabels,
             queriesSelector: '%(queriesSelector)s',
@@ -176,12 +186,12 @@ function(this) {
           expr: |||
             max(
               (
-                avg_over_time(databricks_query_duration_seconds{%(queriesSelector)s, quantile="0.95"}[1d] offset 1d)
+                avg_over_time(databricks_query_duration_seconds_sliding{%(queriesSelector)s, quantile="0.95"}[1d] offset 1d)
                 -
-                avg_over_time(databricks_query_duration_seconds{%(queriesSelector)s, quantile="0.95"}[1d] offset 2d)
+                avg_over_time(databricks_query_duration_seconds_sliding{%(queriesSelector)s, quantile="0.95"}[1d] offset 2d)
               )
               /
-              avg_over_time(databricks_query_duration_seconds{%(queriesSelector)s, quantile="0.95"}[1d] offset 2d)
+              avg_over_time(databricks_query_duration_seconds_sliding{%(queriesSelector)s, quantile="0.95"}[1d] offset 2d)
             )
           ||| % { queriesSelector: '%(queriesSelector)s' },
           legendCustomTemplate: 'DoD p95 (max)',
@@ -192,15 +202,17 @@ function(this) {
     queryErrorRate: {
       name: 'Query error rate',
       nameShort: 'Error rate',
-      description: 'SQL error percentage (adapts to dashboard time range).',
+      description: 'SQL error percentage.',
       type: 'raw',
       unit: 'percentunit',
       sources: {
         prometheus: {
           expr: |||
-            sum by (%(aggregationLabels)s) (increase(databricks_query_errors_total{%(queriesSelector)s}[$__interval:] offset $__interval))
-            /
-            sum by (%(aggregationLabels)s) (increase(databricks_queries_total{%(queriesSelector)s}[$__interval:] offset $__interval))
+            last_over_time((
+              sum by (%(aggregationLabels)s) (databricks_query_errors_sliding{%(queriesSelector)s})
+              /
+              sum by (%(aggregationLabels)s) (databricks_queries_sliding{%(queriesSelector)s})
+            )[30m:])
           ||| % {
             aggregationLabels: aggregationLabels,
             queriesSelector: '%(queriesSelector)s',
@@ -213,12 +225,13 @@ function(this) {
     queriesByWorkspace: {
       name: 'Queries by workspace',
       nameShort: 'By workspace',
-      description: 'Query volume breakdown by workspace (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Query volume by workspace.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'sum by (workspace_id) (increase(databricks_queries_total{%(queriesSelector)s}[$__interval:] offset $__interval))',
+          expr: 'sum by (workspace_id) (databricks_queries_sliding{%(queriesSelector)s})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{workspace_id}}',
         },
       },
@@ -233,7 +246,8 @@ function(this) {
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'sum by (workspace_id, warehouse_id) (databricks_queries_total{%(queriesSelector)s})',
+          expr: 'sum by (workspace_id, warehouse_id) (databricks_queries_sliding{%(queriesSelector)s})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{warehouse_id}}',
         },
       },
@@ -247,7 +261,8 @@ function(this) {
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'sum by (workspace_id, warehouse_id) (databricks_query_errors_total{%(queriesSelector)s})',
+          expr: 'sum by (workspace_id, warehouse_id) (databricks_query_errors_sliding{%(queriesSelector)s})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{warehouse_id}}',
         },
       },
@@ -261,7 +276,8 @@ function(this) {
       unit: 's',
       sources: {
         prometheus: {
-          expr: 'max by (warehouse_id) (databricks_query_duration_seconds{%(queriesSelector)s, quantile="0.95"})',
+          expr: 'max by (warehouse_id) (databricks_query_duration_seconds_sliding{%(queriesSelector)s, quantile="0.95"})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{warehouse_id}}',
         },
       },
@@ -270,12 +286,13 @@ function(this) {
     queriesByWarehouse: {
       name: 'Queries by warehouse (time series)',
       nameShort: 'By warehouse',
-      description: 'Query volume over time by warehouse (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Query volume by warehouse.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'increase(databricks_queries_total{%(queriesSelector)s}[$__interval:] offset $__interval)',
+          expr: 'databricks_queries_sliding{%(queriesSelector)s}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{warehouse_id}}',
         },
       },
@@ -284,12 +301,13 @@ function(this) {
     queryErrorsByWarehouse: {
       name: 'Query errors by warehouse (time series)',
       nameShort: 'Errors by warehouse',
-      description: 'Query errors over time by warehouse (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Query errors by warehouse.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'increase(databricks_query_errors_total{%(queriesSelector)s}[$__interval:] offset $__interval)',
+          expr: 'databricks_query_errors_sliding{%(queriesSelector)s}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{warehouse_id}}',
         },
       },
@@ -303,7 +321,8 @@ function(this) {
       unit: 's',
       sources: {
         prometheus: {
-          expr: 'databricks_query_duration_seconds{%(queriesSelector)s, quantile="0.95"}',
+          expr: 'databricks_query_duration_seconds_sliding{%(queriesSelector)s, quantile="0.95"}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{warehouse_id}}',
         },
       },
@@ -317,7 +336,8 @@ function(this) {
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'databricks_queries_running{%(queriesSelector)s}',
+          expr: 'databricks_queries_running_sliding{%(queriesSelector)s}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{warehouse_id}}',
         },
       },

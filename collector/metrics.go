@@ -5,29 +5,29 @@ import "github.com/prometheus/client_golang/prometheus"
 // MetricDescriptors holds all Prometheus metric descriptors for the Databricks exporter.
 type MetricDescriptors struct {
 	// Billing & Cost Metrics (FinOps)
-	BillingDBUsTotal       *prometheus.Desc
+	BillingDBUs            *prometheus.Desc
 	BillingCostEstimateUSD *prometheus.Desc
 	PriceChangeEvents      *prometheus.Desc
 	BillingScrapeErrors    *prometheus.Desc
 
 	// Jobs Metrics (SRE/Platform)
-	JobRunsTotal          *prometheus.Desc
-	JobRunStatusTotal     *prometheus.Desc
+	JobRuns               *prometheus.Desc
+	JobRunStatus          *prometheus.Desc
 	JobRunDurationSeconds *prometheus.Desc
-	TaskRetriesTotal      *prometheus.Desc
-	JobSLAMissTotal       *prometheus.Desc
+	TaskRetries           *prometheus.Desc
+	JobSLAMiss            *prometheus.Desc
 
 	// Pipelines Metrics (SRE/Platform)
-	PipelineRunsTotal           *prometheus.Desc
-	PipelineRunStatusTotal      *prometheus.Desc
+	PipelineRuns                *prometheus.Desc
+	PipelineRunStatus           *prometheus.Desc
 	PipelineRunDurationSeconds  *prometheus.Desc
-	PipelineRetryEventsTotal    *prometheus.Desc
+	PipelineRetryEvents         *prometheus.Desc
 	PipelineFreshnessLagSeconds *prometheus.Desc
 
 	// SQL Warehouse Metrics (Analytics/BI)
-	QueriesTotal         *prometheus.Desc
+	Queries              *prometheus.Desc
 	QueryDurationSeconds *prometheus.Desc
-	QueryErrorsTotal     *prometheus.Desc
+	QueryErrors          *prometheus.Desc
 	QueriesRunning       *prometheus.Desc
 
 	// Exporter health
@@ -45,23 +45,29 @@ func NewMetricDescriptors() *MetricDescriptors {
 	return &MetricDescriptors{
 		// ===== Billing & Cost Metrics (FinOps) =====
 
-		BillingDBUsTotal: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "billing", "dbus_total"),
-			"Databricks Units (DBUs) consumed per workspace and SKU (sliding window, configurable via --billing-lookback, default: 24h).",
+		BillingDBUs: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "billing", "dbus_sliding"),
+			"Databricks Units (DBUs) consumed per workspace and SKU. "+
+				"Note: Databricks billing data has 24-48h lag from actual usage. "+
+				"Sliding window configurable via --billing-lookback (default: 24h).",
 			[]string{labelWorkspaceID, labelSKUName},
 			nil,
 		),
 
 		BillingCostEstimateUSD: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "billing", "cost_estimate_usd"),
-			"List-price cost estimate (DBUs × list price) per workspace and SKU (sliding window, configurable via --billing-lookback, default: 24h).",
+			prometheus.BuildFQName(namespace, "billing", "cost_estimate_usd_sliding"),
+			"List-price cost estimate (DBUs × list price) per workspace and SKU. "+
+				"Note: Databricks billing data has 24-48h lag from actual usage. "+
+				"Sliding window configurable via --billing-lookback (default: 24h).",
 			[]string{labelWorkspaceID, labelSKUName},
 			nil,
 		),
 
 		PriceChangeEvents: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "price_change_events"),
-			"Pricing changes for a SKU (sliding window, configurable via --billing-lookback, default: 24h).",
+			prometheus.BuildFQName(namespace, "", "price_change_events_sliding"),
+			"Pricing changes for a SKU. "+
+				"Note: Databricks billing data has 24-48h lag. "+
+				"Sliding window configurable via --billing-lookback (default: 24h).",
 			[]string{labelSKUName},
 			nil,
 		),
@@ -75,103 +81,102 @@ func NewMetricDescriptors() *MetricDescriptors {
 
 		// ===== Jobs Metrics (SRE/Platform) =====
 
-		JobRunsTotal: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "job_runs_total"),
-			"Lakeflow Jobs runs per workspace and job (sliding window, configurable via --jobs-lookback, default: 2h).",
+		JobRuns: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "job_runs_sliding"),
+			"Lakeflow Jobs runs per workspace and job (sliding window, configurable via --jobs-lookback, default: 3h).",
 			[]string{labelWorkspaceID, labelJobID, labelJobName},
 			nil,
 		),
 
-		JobRunStatusTotal: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "job_run_status_total"),
-			"Job status counts (SUCCEEDED/FAILED/CANCELED) per workspace and job (sliding window, configurable via --jobs-lookback, default: 2h).",
+		JobRunStatus: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "job_run_status_sliding"),
+			"Job status counts (SUCCEEDED/FAILED/CANCELED) per workspace and job (sliding window, configurable via --jobs-lookback, default: 3h).",
 			[]string{labelWorkspaceID, labelJobID, labelJobName, labelStatus},
 			nil,
 		),
 
 		JobRunDurationSeconds: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "job_run_duration_seconds"),
-			"Job run duration quantiles (p50/p95/p99) per workspace and job (sliding window, configurable via --jobs-lookback, default: 2h).",
+			prometheus.BuildFQName(namespace, "", "job_run_duration_seconds_sliding"),
+			"Job run duration quantiles (p50/p95/p99) per workspace and job (sliding window, configurable via --jobs-lookback, default: 3h).",
 			[]string{labelWorkspaceID, labelJobID, labelJobName, labelQuantile},
 			nil,
 		),
 
-		TaskRetriesTotal: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "task_retries_total"),
-			"Retries across job tasks per workspace, job, and task key (sliding window, configurable via --jobs-lookback, default: 2h).",
+		TaskRetries: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "task_retries_sliding"),
+			"Retries across job tasks per workspace, job, and task key (sliding window, configurable via --jobs-lookback, default: 3h).",
 			[]string{labelWorkspaceID, labelJobID, labelJobName, labelTaskKey},
 			nil,
 		),
 
-		JobSLAMissTotal: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "job_sla_miss_total"),
-			"Job runs exceeding SLA threshold (configurable via --sla-threshold) per workspace and job (sliding window, configurable via --jobs-lookback, default: 2h).",
+		JobSLAMiss: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "job_sla_miss_sliding"),
+			"Job runs exceeding SLA threshold (configurable via --sla-threshold) per workspace and job (sliding window, configurable via --jobs-lookback, default: 3h).",
 			[]string{labelWorkspaceID, labelJobID, labelJobName},
 			nil,
 		),
 
 		// ===== Pipelines Metrics (SRE/Platform) =====
 
-		PipelineRunsTotal: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "pipeline_runs_total"),
-			"DLT / Lakeflow Pipelines executions per workspace and pipeline (sliding window, configurable via --pipelines-lookback, default: 2h).",
+		PipelineRuns: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "pipeline_runs_sliding"),
+			"DLT / Lakeflow Pipelines executions per workspace and pipeline (sliding window, configurable via --pipelines-lookback, default: 3h).",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName},
 			nil,
 		),
 
-		PipelineRunStatusTotal: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "pipeline_run_status_total"),
-			"Pipeline run status counts (COMPLETED/FAILED) per workspace and pipeline (sliding window, configurable via --pipelines-lookback, default: 2h).",
+		PipelineRunStatus: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "pipeline_run_status_sliding"),
+			"Pipeline run status counts (COMPLETED/FAILED) per workspace and pipeline (sliding window, configurable via --pipelines-lookback, default: 3h).",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName, labelStatus},
 			nil,
 		),
 
 		PipelineRunDurationSeconds: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "pipeline_run_duration_seconds"),
-			"Pipeline run duration quantiles (p50/p95/p99) per workspace and pipeline (sliding window, configurable via --pipelines-lookback, default: 2h).",
+			prometheus.BuildFQName(namespace, "", "pipeline_run_duration_seconds_sliding"),
+			"Pipeline run duration quantiles (p50/p95/p99) per workspace and pipeline (sliding window, configurable via --pipelines-lookback, default: 3h).",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName, labelQuantile},
 			nil,
 		),
 
-		PipelineRetryEventsTotal: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "pipeline_retry_events_total"),
-			"Retry/backoff events within pipeline updates per workspace and pipeline (sliding window, configurable via --pipelines-lookback, default: 2h).",
+		PipelineRetryEvents: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "pipeline_retry_events_sliding"),
+			"Retry/backoff events within pipeline updates per workspace and pipeline (sliding window, configurable via --pipelines-lookback, default: 3h).",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName},
 			nil,
 		),
 
 		PipelineFreshnessLagSeconds: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "pipeline_freshness_lag_seconds"),
+			prometheus.BuildFQName(namespace, "", "pipeline_freshness_lag_seconds_sliding"),
 			"Data freshness lag vs target watermark per workspace and pipeline (point-in-time, derived from latest pipeline runs within lookback window).",
 			[]string{labelWorkspaceID, labelPipelineID, labelPipelineName},
 			nil,
 		),
-
 		// ===== SQL Warehouse Metrics (Analytics/BI) =====
 
-		QueriesTotal: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "queries_total"),
-			"SQL queries executed (warehouse & serverless) per workspace and warehouse (sliding window, configurable via --queries-lookback, default: 1h).",
+		Queries: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "queries_sliding"),
+			"SQL queries executed (warehouse & serverless) per workspace and warehouse (sliding window, configurable via --queries-lookback, default: 2h).",
 			[]string{labelWorkspaceID, labelWarehouseID},
 			nil,
 		),
 
 		QueryDurationSeconds: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "query_duration_seconds"),
-			"Query latency quantiles (p50/p95/p99) per workspace and warehouse (sliding window, configurable via --queries-lookback, default: 1h).",
+			prometheus.BuildFQName(namespace, "", "query_duration_seconds_sliding"),
+			"Query latency quantiles (p50/p95/p99) per workspace and warehouse (sliding window, configurable via --queries-lookback, default: 2h).",
 			[]string{labelWorkspaceID, labelWarehouseID, labelQuantile},
 			nil,
 		),
 
-		QueryErrorsTotal: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "query_errors_total"),
-			"Failed queries per workspace and warehouse (sliding window, configurable via --queries-lookback, default: 1h).",
+		QueryErrors: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "query_errors_sliding"),
+			"Failed queries per workspace and warehouse (sliding window, configurable via --queries-lookback, default: 2h).",
 			[]string{labelWorkspaceID, labelWarehouseID},
 			nil,
 		),
 
 		QueriesRunning: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "queries_running"),
+			prometheus.BuildFQName(namespace, "", "queries_running_sliding"),
 			"Concurrent/running queries per workspace and warehouse (derived from overlapping intervals within lookback window).",
 			[]string{labelWorkspaceID, labelWarehouseID},
 			nil,
@@ -209,29 +214,29 @@ func NewMetricDescriptors() *MetricDescriptors {
 // This implements the prometheus.Collector interface.
 func (m *MetricDescriptors) Describe(ch chan<- *prometheus.Desc) {
 	// Billing & Cost
-	ch <- m.BillingDBUsTotal
+	ch <- m.BillingDBUs
 	ch <- m.BillingCostEstimateUSD
 	ch <- m.PriceChangeEvents
 	ch <- m.BillingScrapeErrors
 
 	// Jobs
-	ch <- m.JobRunsTotal
-	ch <- m.JobRunStatusTotal
+	ch <- m.JobRuns
+	ch <- m.JobRunStatus
 	ch <- m.JobRunDurationSeconds
-	ch <- m.TaskRetriesTotal
-	ch <- m.JobSLAMissTotal
+	ch <- m.TaskRetries
+	ch <- m.JobSLAMiss
 
 	// Pipelines
-	ch <- m.PipelineRunsTotal
-	ch <- m.PipelineRunStatusTotal
+	ch <- m.PipelineRuns
+	ch <- m.PipelineRunStatus
 	ch <- m.PipelineRunDurationSeconds
-	ch <- m.PipelineRetryEventsTotal
+	ch <- m.PipelineRetryEvents
 	ch <- m.PipelineFreshnessLagSeconds
 
 	// SQL Warehouse
-	ch <- m.QueriesTotal
+	ch <- m.Queries
 	ch <- m.QueryDurationSeconds
-	ch <- m.QueryErrorsTotal
+	ch <- m.QueryErrors
 	ch <- m.QueriesRunning
 
 	// Health

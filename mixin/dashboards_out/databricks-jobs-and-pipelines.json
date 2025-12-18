@@ -65,7 +65,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "sum by (job,workspace_id,instance) (increase(databricks_job_runs_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))",
+                  "expr": "last_over_time(\n  sum by (job,workspace_id,instance) (databricks_job_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n[30m:])",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "Jobs",
@@ -107,7 +107,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "sum by (job,workspace_id,instance) (increase(databricks_pipeline_runs_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))",
+                  "expr": "last_over_time(\n  sum by (job,workspace_id,instance) (databricks_pipeline_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n[30m:])",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "Pipelines",
@@ -149,7 +149,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "sum (increase(databricks_job_run_status_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=\"SUCCEEDED\"}[$__interval:] offset $__interval))\n/\nsum (increase(databricks_job_run_status_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))\n",
+                  "expr": "last_over_time((\n  sum(databricks_job_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=\"SUCCEEDED\"})\n  /\n  sum(databricks_job_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n)[30m:])\n",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "Success rate",
@@ -191,7 +191,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "sum (increase(databricks_pipeline_run_status_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=\"COMPLETED\"}[$__interval:] offset $__interval))\n/\nsum (increase(databricks_pipeline_run_status_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))\n",
+                  "expr": "last_over_time((\n  sum(databricks_pipeline_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=\"COMPLETED\"})\n  /\n  sum(databricks_pipeline_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n)[30m:])\n",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "Success rate",
@@ -233,7 +233,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "max(databricks_job_run_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})",
+                  "expr": "last_over_time(\n  max(databricks_job_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})\n[30m:])",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "Jobs p95",
@@ -275,7 +275,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "max(databricks_pipeline_run_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})",
+                  "expr": "last_over_time(\n  max(databricks_pipeline_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})\n[30m:])",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "Pipelines p95",
@@ -340,7 +340,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "sum by (job,workspace_id,instance) (increase(databricks_job_runs_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))",
+                  "expr": "last_over_time(\n  sum by (job,workspace_id,instance) (databricks_job_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n[30m:])",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "Jobs",
@@ -351,7 +351,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "sum by (job,workspace_id,instance) (increase(databricks_pipeline_runs_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))",
+                  "expr": "last_over_time(\n  sum by (job,workspace_id,instance) (databricks_pipeline_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n[30m:])",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "Pipelines",
@@ -404,7 +404,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "max(databricks_job_run_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})",
+                  "expr": "last_over_time(\n  max(databricks_job_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})\n[30m:])",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "Jobs p95",
@@ -457,7 +457,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "max(databricks_pipeline_run_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})",
+                  "expr": "last_over_time(\n  max(databricks_pipeline_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})\n[30m:])",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "Pipelines p95",
@@ -522,7 +522,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "sum by (workspace_id) (increase(databricks_job_run_status_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=~\"FAILED|ERROR\"}[$__interval:] offset $__interval))\n/\nsum by (workspace_id) (increase(databricks_job_run_status_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))\n",
+                  "expr": "last_over_time((\n  sum by (workspace_id) (databricks_job_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=~\"FAILED|ERROR\"})\n  /\n  sum by (workspace_id) (databricks_job_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n)[30m:])\n",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "{{workspace_id}} - Jobs",
@@ -533,7 +533,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "sum by (workspace_id) (increase(databricks_pipeline_run_status_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=\"FAILED\"}[$__interval:] offset $__interval))\n/\nsum by (workspace_id) (increase(databricks_pipeline_run_status_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval))\n",
+                  "expr": "last_over_time((\n  sum by (workspace_id) (databricks_pipeline_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=\"FAILED\"})\n  /\n  sum by (workspace_id) (databricks_pipeline_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n)[30m:])\n",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "{{workspace_id}} - Pipelines",
@@ -587,7 +587,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "increase(databricks_task_retries_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval)",
+                  "expr": "last_over_time(\n  databricks_task_retries_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "{{workspace_id}} - Task retries",
@@ -598,7 +598,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "increase(databricks_pipeline_retry_events_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval)",
+                  "expr": "last_over_time(\n  databricks_pipeline_retry_events_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "{{workspace_id}} - Pipeline retries",
@@ -668,7 +668,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "increase(databricks_job_run_status_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval)",
+                  "expr": "last_over_time(\n  databricks_job_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "{{job_name}} - {{status}}",
@@ -725,7 +725,7 @@
                      "type": "prometheus",
                      "uid": "${datasource}"
                   },
-                  "expr": "increase(databricks_pipeline_run_status_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval)",
+                  "expr": "last_over_time(\n  databricks_pipeline_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
                   "format": "time_series",
                   "instant": false,
                   "legendFormat": "{{pipeline_name}} - {{status}}",
@@ -781,7 +781,7 @@
                            "type": "prometheus",
                            "uid": "${datasource}"
                         },
-                        "expr": "sum by (workspace_id, job_id, job_name) (databricks_job_runs_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})",
+                        "expr": "last_over_time(\n  sum by (workspace_id, job_id, job_name) (databricks_job_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n[30m:])",
                         "format": "table",
                         "instant": true,
                         "legendFormat": "{{job_name}}",
@@ -869,7 +869,7 @@
                            "type": "prometheus",
                            "uid": "${datasource}"
                         },
-                        "expr": "databricks_job_run_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}",
+                        "expr": "last_over_time(\n  databricks_job_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}\n[30m:])",
                         "format": "table",
                         "instant": true,
                         "legendFormat": "{{job_name}} (p95)",
@@ -958,7 +958,7 @@
                            "type": "prometheus",
                            "uid": "${datasource}"
                         },
-                        "expr": "increase(databricks_job_run_status_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=~\"ERROR|FAILED|CANCELLED\"}[$__interval:] offset $__interval)",
+                        "expr": "last_over_time(\n  databricks_job_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=~\"ERROR|FAILED|CANCELLED\"}\n[30m:])",
                         "format": "table",
                         "instant": true,
                         "legendFormat": "{{job_name}}",
@@ -1055,7 +1055,7 @@
                            "type": "prometheus",
                            "uid": "${datasource}"
                         },
-                        "expr": "increase(databricks_job_runs_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval)",
+                        "expr": "last_over_time(\n  databricks_job_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
                         "format": "time_series",
                         "instant": false,
                         "legendFormat": "{{job_name}}",
@@ -1108,7 +1108,7 @@
                            "type": "prometheus",
                            "uid": "${datasource}"
                         },
-                        "expr": "databricks_job_run_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}",
+                        "expr": "last_over_time(\n  databricks_job_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}\n[30m:])",
                         "format": "time_series",
                         "instant": false,
                         "legendFormat": "{{job_name}} (p95)",
@@ -1175,7 +1175,7 @@
                            "type": "prometheus",
                            "uid": "${datasource}"
                         },
-                        "expr": "increase(databricks_pipeline_runs_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}[$__interval:] offset $__interval)",
+                        "expr": "last_over_time(\n  databricks_pipeline_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
                         "format": "time_series",
                         "instant": false,
                         "legendFormat": "{{pipeline_name}}",
@@ -1221,7 +1221,7 @@
                            "type": "prometheus",
                            "uid": "${datasource}"
                         },
-                        "expr": "sum by (workspace_id, pipeline_id, pipeline_name) (databricks_pipeline_runs_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})",
+                        "expr": "last_over_time(\n  sum by (workspace_id, pipeline_id, pipeline_name) (databricks_pipeline_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n[30m:])",
                         "format": "table",
                         "instant": true,
                         "legendFormat": "{{pipeline_name}}",
@@ -1309,7 +1309,7 @@
                            "type": "prometheus",
                            "uid": "${datasource}"
                         },
-                        "expr": "databricks_pipeline_run_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}",
+                        "expr": "last_over_time(\n  databricks_pipeline_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}\n[30m:])",
                         "format": "table",
                         "instant": true,
                         "legendFormat": "{{pipeline_name}} (p95)",
@@ -1398,7 +1398,7 @@
                            "type": "prometheus",
                            "uid": "${datasource}"
                         },
-                        "expr": "increase(databricks_pipeline_run_status_total{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=\"FAILED\"}[$__interval:] offset $__interval)",
+                        "expr": "last_over_time(\n  databricks_pipeline_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=\"FAILED\"}\n[30m:])",
                         "format": "table",
                         "instant": true,
                         "legendFormat": "{{pipeline_name}}",
@@ -1488,7 +1488,7 @@
                            "type": "prometheus",
                            "uid": "${datasource}"
                         },
-                        "expr": "databricks_pipeline_freshness_lag_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}",
+                        "expr": "last_over_time(\n  databricks_pipeline_freshness_lag_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
                         "format": "table",
                         "instant": true,
                         "legendFormat": "{{pipeline_name}}",
@@ -1583,7 +1583,7 @@
                            "type": "prometheus",
                            "uid": "${datasource}"
                         },
-                        "expr": "databricks_pipeline_run_duration_seconds{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}",
+                        "expr": "last_over_time(\n  databricks_pipeline_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}\n[30m:])",
                         "format": "time_series",
                         "instant": false,
                         "legendFormat": "{{pipeline_name}} (p95)",
@@ -1622,7 +1622,7 @@
                "label": "Job",
                "multi": true,
                "name": "job",
-               "query": "label_values(databricks_billing_dbus_total{}, job)",
+               "query": "label_values(databricks_billing_dbus_sliding{}, job)",
                "refresh": 2,
                "sort": 1,
                "type": "query"
@@ -1637,7 +1637,7 @@
                "label": "Workspace",
                "multi": true,
                "name": "workspace_id",
-               "query": "label_values(databricks_billing_dbus_total{job=~\"$job\"}, workspace_id)",
+               "query": "label_values(databricks_billing_dbus_sliding{job=~\"$job\"}, workspace_id)",
                "refresh": 2,
                "sort": 1,
                "type": "query"
@@ -1652,7 +1652,7 @@
                "label": "Instance",
                "multi": true,
                "name": "instance",
-               "query": "label_values(databricks_billing_dbus_total{job=~\"$job\",workspace_id=~\"$workspace_id\"}, instance)",
+               "query": "label_values(databricks_billing_dbus_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\"}, instance)",
                "refresh": 2,
                "sort": 1,
                "type": "query"

@@ -34,9 +34,9 @@ func NewSQLWarehouseCollector(ctx context.Context, db *sql.DB, metrics *MetricDe
 
 // Describe sends the descriptors of each metric over the provided channel.
 func (c *SQLWarehouseCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- c.metrics.QueriesTotal
+	ch <- c.metrics.Queries
 	ch <- c.metrics.QueryDurationSeconds
-	ch <- c.metrics.QueryErrorsTotal
+	ch <- c.metrics.QueryErrors
 	ch <- c.metrics.QueriesRunning
 	ch <- c.metrics.ScrapeStatus
 }
@@ -102,7 +102,7 @@ func (c *SQLWarehouseCollector) collectQueries(ch chan<- prometheus.Metric) erro
 
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
-				c.metrics.QueriesTotal,
+				c.metrics.Queries,
 				prometheus.GaugeValue, // Gauge because this is a sliding window count that can decrease
 				count.Float64,
 				workspaceID.String,
@@ -137,7 +137,7 @@ func (c *SQLWarehouseCollector) collectQueryErrors(ch chan<- prometheus.Metric) 
 
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
-				c.metrics.QueryErrorsTotal,
+				c.metrics.QueryErrors,
 				prometheus.GaugeValue, // Gauge because this is a sliding window count that can decrease
 				count.Float64,
 				workspaceID.String,

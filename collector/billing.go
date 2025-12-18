@@ -34,7 +34,7 @@ func NewBillingCollector(ctx context.Context, db *sql.DB, metrics *MetricDescrip
 
 // Describe sends the descriptors of each metric over the provided channel.
 func (c *BillingCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- c.metrics.BillingDBUsTotal
+	ch <- c.metrics.BillingDBUs
 	ch <- c.metrics.BillingCostEstimateUSD
 	ch <- c.metrics.PriceChangeEvents
 	ch <- c.metrics.BillingScrapeErrors
@@ -122,7 +122,7 @@ func (c *BillingCollector) collectBillingDBUs(ch chan<- prometheus.Metric) error
 		}
 
 		ch <- prometheus.MustNewConstMetric(
-			c.metrics.BillingDBUsTotal,
+			c.metrics.BillingDBUs,
 			prometheus.GaugeValue,
 			dbusTotal,
 			workspaceID.String,

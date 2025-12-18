@@ -8,7 +8,7 @@ This exporter connects to a Databricks SQL Warehouse and queries Databricks Syst
 
 ## Configuration
 
-### Command line flags
+### Command-line flags
 
 The exporter may be configured through its command line flags:
 
@@ -22,10 +22,10 @@ The exporter may be configured through its command line flags:
 | `--client-id` | *required* | The OAuth2 Client ID (Application ID) for Service Principal authentication. |
 | `--client-secret` | *required* | The OAuth2 Client Secret for Service Principal authentication. |
 | `--query-timeout` | `5m` | Timeout for database queries. |
-| `--billing-lookback` | `24h` | How far back to look for billing data. |
-| `--jobs-lookback` | `2h` | How far back to look for job runs. |
-| `--pipelines-lookback` | `2h` | How far back to look for pipeline runs. |
-| `--queries-lookback` | `1h` | How far back to look for SQL warehouse queries. |
+| `--billing-lookback` | `24h` | How far back to look for billing data. See [Lookback Windows](#lookback-windows). |
+| `--jobs-lookback` | `4h` | How far back to look for job runs. See [Lookback Windows](#lookback-windows). |
+| `--pipelines-lookback` | `4h` | How far back to look for pipeline runs. See [Lookback Windows](#lookback-windows). |
+| `--queries-lookback` | `2h` | How far back to look for SQL warehouse queries. See [Lookback Windows](#lookback-windows). |
 | `--sla-threshold` | `3600` | Duration threshold (in seconds) for job SLA miss detection. |
 | `--collect-task-retries` | `false` | Collect task retry metrics (high cardinality due to `task_key` label). |
 | `--table-check-interval` | `10` | Number of scrapes between table availability checks (for optional tables like pipelines). |
@@ -75,7 +75,7 @@ export DATABRICKS_EXPORTER_CLIENT_SECRET="your-client-secret-here"
 
 ## Authentication
 
-### Service Principal OAuth2 Authentication
+### Service principal OAuth2 authentication
 
 The exporter uses OAuth2 Machine-to-Machine (M2M) authentication with Databricks Service Principals, following Databricks' recommended security practices.
 
@@ -87,7 +87,7 @@ The exporter uses OAuth2 Machine-to-Machine (M2M) authentication with Databricks
 
 3. **SQL Warehouse**: Have a running SQL Warehouse (or one configured to auto-start) for executing queries.
 
-#### Setting up a Service Principal
+#### Setting up a service principal
 
 1. Log into your Databricks workspace
 2. Go to **Settings** → **Admin Console** → **Service Principals**
@@ -96,7 +96,7 @@ The exporter uses OAuth2 Machine-to-Machine (M2M) authentication with Databricks
 5. Click **Generate Secret** under OAuth Secrets
 6. Copy and securely store the **Client Secret** (you won't see it again!)
 
-#### Required Permissions
+#### Required permissions
 
 The Service Principal needs access to the Databricks workspace, permission to use the SQL Warehouse, and appropriate Unity Catalog permissions on System Tables.
 
@@ -130,28 +130,29 @@ These grants provide:
   - `system.lakeflow.job_run_timeline`, `system.lakeflow.job_task_run_timeline`, `system.lakeflow.pipeline_update_timeline`
   - `system.query.history`
 
-### Getting Required Configuration Values
+### Getting required configuration values
 
-#### Server Hostname
+#### Server hostname
 - Found in your Databricks workspace URL
 - Example: `dbc-abc123-def456.cloud.databricks.com`
 - Remove the `https://` prefix
 
-#### Warehouse HTTP Path
+#### Warehouse HTTP path
 1. Go to **SQL Warehouses** in your Databricks workspace
 2. Select your SQL Warehouse
 3. Click **Connection Details** tab
 4. Copy the **HTTP Path** (format: `/sql/1.0/warehouses/<warehouse-id>`)
 
-#### Client ID and Client Secret
+#### Client ID and client secret
 1. Go to **Settings** → **Admin Console** → **Service Principals**
 2. Find your Service Principal
 3. The **Application ID** is your **Client ID**
 4. Generate and copy the **Client Secret**
 
-## System tables used
+## Metrics and system tables
 
-Please refer to the [Systems table reference](docs/databricks-system-tables.md) for more information on which system tables are queried by the exporter.
+- **[Metrics Reference](docs/metrics-reference.md)** — Complete list of exported metrics with descriptions, labels, and types
+- **[System Tables Reference](docs/databricks-system-tables.md)** — Databricks system tables queried by the exporter
 
 ## Building
 
@@ -178,39 +179,127 @@ docker run -p 9976:9976 \
   databricks-exporter
 ```
 
-## Prometheus Configuration
+## Prometheus configuration
 
 Add the exporter as a scrape target in your Prometheus configuration:
 
 ```yaml
 scrape_configs:
   - job_name: 'databricks'
+    scrape_interval: 10m
+    scrape_timeout: 9m
     static_configs:
       - targets: ['localhost:9976']
 ```
 
+### Scrape interval requirements
+
+| Setting | Minimum | Maximum | Recommended |
+|---------|---------|---------|-------------|
+| `scrape_interval` | 10m | 30m | 10m |
+| `scrape_timeout` | 9m | 29m | 9m |
+
+**Why these constraints?**
+
+- **Minimum 10 minutes**: The exporter queries Databricks System Tables which can take 30-120 seconds depending on data volume. Scraping more frequently wastes resources and may cause overlapping scrapes.
+
+- **Maximum 30 minutes**: The mixin dashboards use `last_over_time(...[30m:])` to bridge gaps between scrapes. Intervals longer than 30 minutes will cause gaps in dashboard visualizations.
+
+- **Timeout < Interval**: Always set `scrape_timeout` less than `scrape_interval` to prevent overlapping scrapes. A 1-minute buffer (e.g., 9m timeout for 10m interval) is recommended.
+
+### Grafana Alloy configuration
+
+If using Grafana Alloy instead of Prometheus:
+
+```alloy
+prometheus.scrape "databricks" {
+  targets = [{
+    __address__ = "localhost:9976",
+  }]
+
+  forward_to      = [prometheus.remote_write.default.receiver]
+  scrape_interval = "10m"
+  scrape_timeout  = "9m"
+}
+```
+
+### Lookback windows
+
+The exporter uses **sliding window queries** to collect metrics from Databricks System Tables. Each scrape queries data from `now - lookback` to `now`, meaning:
+
+- Metrics represent counts/aggregates over the lookback window
+- Values can decrease as older data "slides out" of the window
+- The lookback must be long enough to ensure data continuity between scrapes
+
+#### Default lookback windows
+
+| Domain | Lookback | Rationale |
+|--------|----------|-----------|
+| Billing | 24h | Databricks billing data has 24-48h lag; daily granularity |
+| Jobs | 4h | Covers multiple scrape intervals with safety margin |
+| Pipelines | 4h | Covers multiple scrape intervals with safety margin |
+| Queries | 2h | SQL queries are more frequent; shorter window sufficient |
+
+#### Lookback vs scrape interval relationship
+
+The lookback window must be **significantly larger** than the scrape interval to prevent data loss:
+
+```
+Minimum safe lookback = scrape_interval × 4
+```
+
+| Scrape Interval | Minimum Lookback | Recommended Lookback |
+|-----------------|------------------|----------------------|
+| 10m | 40m | 2h+ |
+| 15m | 1h | 2h+ |
+| 30m | 2h | 4h+ |
+
+**Why this matters:**
+
+1. **Data continuity**: If a job completes at time T, it appears in scrapes from T to T+lookback. With a 10m scrape interval and 4h lookback, that job appears in ~24 consecutive scrapes.
+
+2. **Missed scrapes**: If a scrape fails or is delayed, the next scrape still captures the data because the lookback window overlaps.
+
+3. **Dashboard accuracy**: The mixin dashboards use `last_over_time([30m:])` to bridge gaps. This assumes data points exist within each 30-minute window.
+
+#### Customizing lookback windows
+
+You can adjust lookback windows based on your workload patterns:
+
+```sh
+# For high-frequency job environments (many short jobs)
+./databricks-exporter --jobs-lookback=2h --pipelines-lookback=2h
+
+# For low-frequency batch environments (few long jobs)
+./databricks-exporter --jobs-lookback=8h --pipelines-lookback=8h
+```
+
+**Trade-offs:**
+- Longer lookback = more data per scrape = slower queries = higher Databricks costs
+- Shorter lookback = risk of missing data if scrapes are delayed
+
 ## Troubleshooting
 
-### Authentication Errors (401 Unauthorized)
+### Authentication errors (401 Unauthorized)
 
 If you see authentication errors:
 - Verify your Client ID (Application ID) is correct
 - Ensure the Client Secret hasn't expired
 - Check that the Service Principal has access to the workspace
 
-### Credit Exhaustion (400 Bad Request)
+### Credit exhaustion (400 Bad Request)
 
 Error: `Sorry, cannot run the resource because you've exhausted your available credits`
 
 This means your Databricks account has run out of credits. Add a payment method or credits to your account to continue.
 
-### Connection Errors
+### Connection errors
 
 - Ensure the SQL Warehouse is running (or set to auto-start)
 - Verify the Warehouse HTTP Path is correct (should start with `/sql/1.0/warehouses/`)
 - Check that the Server Hostname doesn't include `https://`
 
-### No Metrics Appearing
+### No metrics appearing
 
 If `databricks_exporter_up` is 1 but some metrics don't appear:
 - Some metrics only appear when there's data to report (e.g., no retries means no retry metric)
@@ -220,7 +309,7 @@ If `databricks_exporter_up` is 1 but some metrics don't appear:
 - Verify Unity Catalog is enabled on your workspace
 - Ensure the Service Principal has permissions to read all System Tables
 
-### Pipeline Metrics Not Available (TABLE_OR_VIEW_NOT_FOUND)
+### Pipeline metrics not available (TABLE_OR_VIEW_NOT_FOUND)
 
 If you see errors like:
 ```
@@ -251,7 +340,7 @@ The exporter now handles this gracefully:
 
 For more information, see the [Known Limitations section in the mixin README](mixin/README.md#known-limitations).
 
-### Debug Logging
+### Debug logging
 
 Enable debug logging for more detailed information:
 

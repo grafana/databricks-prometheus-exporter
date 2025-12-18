@@ -102,7 +102,7 @@ func TestPipelinesCollector_CollectPipelineRuns(t *testing.T) {
 	// Verify the pipeline_runs_total metric was collected
 	found := false
 	for _, mf := range metricFamilies {
-		if *mf.Name == "databricks_pipeline_runs_total" {
+		if *mf.Name == "databricks_pipeline_runs_sliding" {
 			found = true
 			if len(mf.Metric) != 2 {
 				t.Errorf("expected 2 metrics, got %d", len(mf.Metric))
@@ -111,7 +111,7 @@ func TestPipelinesCollector_CollectPipelineRuns(t *testing.T) {
 	}
 
 	if !found {
-		t.Error("expected databricks_pipeline_runs_total metric not found")
+		t.Error("expected databricks_pipeline_runs_sliding metric not found")
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -165,7 +165,7 @@ func TestPipelinesCollector_CollectPipelineRunStatus(t *testing.T) {
 	// Verify the pipeline_run_status_total metric was collected
 	found := false
 	for _, mf := range metricFamilies {
-		if *mf.Name == "databricks_pipeline_run_status_total" {
+		if *mf.Name == "databricks_pipeline_run_status_sliding" {
 			found = true
 			if len(mf.Metric) != 3 {
 				t.Errorf("expected 3 metrics, got %d", len(mf.Metric))
@@ -174,7 +174,7 @@ func TestPipelinesCollector_CollectPipelineRunStatus(t *testing.T) {
 	}
 
 	if !found {
-		t.Error("expected databricks_pipeline_run_status_total metric not found")
+		t.Error("expected databricks_pipeline_run_status_sliding metric not found")
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -226,7 +226,7 @@ func TestPipelinesCollector_CollectPipelineRunDuration(t *testing.T) {
 	// Verify the pipeline_run_duration_seconds metric was collected
 	found := false
 	for _, mf := range metricFamilies {
-		if *mf.Name == "databricks_pipeline_run_duration_seconds" {
+		if *mf.Name == "databricks_pipeline_run_duration_seconds_sliding" {
 			found = true
 			if len(mf.Metric) != 3 {
 				t.Errorf("expected 3 metrics (p50, p95, p99), got %d", len(mf.Metric))
@@ -235,7 +235,7 @@ func TestPipelinesCollector_CollectPipelineRunDuration(t *testing.T) {
 	}
 
 	if !found {
-		t.Error("expected databricks_pipeline_run_duration_seconds metric not found")
+		t.Error("expected databricks_pipeline_run_duration_seconds_sliding metric not found")
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {

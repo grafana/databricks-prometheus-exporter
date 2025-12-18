@@ -30,9 +30,9 @@ var (
 
 	// Lookback windows
 	billingLookback   = kingpin.Flag("billing-lookback", "How far back to look for billing data.").Default("24h").Envar("DATABRICKS_EXPORTER_BILLING_LOOKBACK").Duration()
-	jobsLookback      = kingpin.Flag("jobs-lookback", "How far back to look for job runs.").Default("2h").Envar("DATABRICKS_EXPORTER_JOBS_LOOKBACK").Duration()
-	pipelinesLookback = kingpin.Flag("pipelines-lookback", "How far back to look for pipeline runs.").Default("2h").Envar("DATABRICKS_EXPORTER_PIPELINES_LOOKBACK").Duration()
-	queriesLookback   = kingpin.Flag("queries-lookback", "How far back to look for SQL warehouse queries.").Default("1h").Envar("DATABRICKS_EXPORTER_QUERIES_LOOKBACK").Duration()
+	jobsLookback      = kingpin.Flag("jobs-lookback", "How far back to look for job runs.").Default("3h").Envar("DATABRICKS_EXPORTER_JOBS_LOOKBACK").Duration()
+	pipelinesLookback = kingpin.Flag("pipelines-lookback", "How far back to look for pipeline runs.").Default("3h").Envar("DATABRICKS_EXPORTER_PIPELINES_LOOKBACK").Duration()
+	queriesLookback   = kingpin.Flag("queries-lookback", "How far back to look for SQL warehouse queries.").Default("2h").Envar("DATABRICKS_EXPORTER_QUERIES_LOOKBACK").Duration()
 
 	// SLA settings (default matches collector.DefaultSLAThresholdSeconds)
 	slaThreshold = kingpin.Flag("sla-threshold", "Duration threshold (in seconds) for job SLA miss detection.").Default("3600").Envar("DATABRICKS_EXPORTER_SLA_THRESHOLD").Int()

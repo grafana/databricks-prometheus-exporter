@@ -11,12 +11,15 @@ const (
 )
 
 // Default values for configuration options.
+//
+// Lookback windows are sized to prevent data loss with scrape intervals up to 30 minutes.
+// Formula: lookback >= scrape_interval + max_data_lag + buffer
 const (
 	DefaultQueryTimeout        = 5 * time.Minute
-	DefaultBillingLookback     = 24 * time.Hour
-	DefaultJobsLookback        = 2 * time.Hour
-	DefaultPipelinesLookback   = 2 * time.Hour
-	DefaultQueriesLookback     = 1 * time.Hour
+	DefaultBillingLookback     = 24 * time.Hour // Daily aggregation, 24-48h data lag
+	DefaultJobsLookback        = 3 * time.Hour  // 1-5 min data lag, 30min scrape buffer
+	DefaultPipelinesLookback   = 3 * time.Hour  // 1-5 min data lag, 30min scrape buffer
+	DefaultQueriesLookback     = 2 * time.Hour  // 5-15 min data lag, 30min scrape buffer
 	DefaultSLAThresholdSeconds = SecondsPerHour
 	DefaultTableCheckInterval  = 10 // Number of scrapes between table availability checks
 )

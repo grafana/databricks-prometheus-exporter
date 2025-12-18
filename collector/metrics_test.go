@@ -22,8 +22,8 @@ func TestNewMetricDescriptors(t *testing.T) {
 	}{
 		// Billing metrics
 		{
-			name:   "BillingDBUsTotal",
-			desc:   metrics.BillingDBUsTotal,
+			name:   "BillingDBUs",
+			desc:   metrics.BillingDBUs,
 			labels: []string{labelWorkspaceID, labelSKUName},
 		},
 		{
@@ -43,13 +43,13 @@ func TestNewMetricDescriptors(t *testing.T) {
 		},
 		// Jobs metrics
 		{
-			name:   "JobRunsTotal",
-			desc:   metrics.JobRunsTotal,
+			name:   "JobRuns",
+			desc:   metrics.JobRuns,
 			labels: []string{labelWorkspaceID, labelJobID, labelJobName},
 		},
 		{
-			name:   "JobRunStatusTotal",
-			desc:   metrics.JobRunStatusTotal,
+			name:   "JobRunStatus",
+			desc:   metrics.JobRunStatus,
 			labels: []string{labelWorkspaceID, labelJobID, labelJobName, labelStatus},
 		},
 		{
@@ -58,24 +58,24 @@ func TestNewMetricDescriptors(t *testing.T) {
 			labels: []string{labelWorkspaceID, labelJobID, labelJobName, labelQuantile},
 		},
 		{
-			name:   "TaskRetriesTotal",
-			desc:   metrics.TaskRetriesTotal,
+			name:   "TaskRetries",
+			desc:   metrics.TaskRetries,
 			labels: []string{labelWorkspaceID, labelJobID, labelJobName, labelTaskKey},
 		},
 		{
-			name:   "JobSLAMissTotal",
-			desc:   metrics.JobSLAMissTotal,
+			name:   "JobSLAMiss",
+			desc:   metrics.JobSLAMiss,
 			labels: []string{labelWorkspaceID, labelJobID, labelJobName},
 		},
 		// Pipelines metrics
 		{
-			name:   "PipelineRunsTotal",
-			desc:   metrics.PipelineRunsTotal,
+			name:   "PipelineRuns",
+			desc:   metrics.PipelineRuns,
 			labels: []string{labelWorkspaceID, labelPipelineID, labelPipelineName},
 		},
 		{
-			name:   "PipelineRunStatusTotal",
-			desc:   metrics.PipelineRunStatusTotal,
+			name:   "PipelineRunStatus",
+			desc:   metrics.PipelineRunStatus,
 			labels: []string{labelWorkspaceID, labelPipelineID, labelPipelineName, labelStatus},
 		},
 		{
@@ -84,8 +84,8 @@ func TestNewMetricDescriptors(t *testing.T) {
 			labels: []string{labelWorkspaceID, labelPipelineID, labelPipelineName, labelQuantile},
 		},
 		{
-			name:   "PipelineRetryEventsTotal",
-			desc:   metrics.PipelineRetryEventsTotal,
+			name:   "PipelineRetryEvents",
+			desc:   metrics.PipelineRetryEvents,
 			labels: []string{labelWorkspaceID, labelPipelineID, labelPipelineName},
 		},
 		{
@@ -95,8 +95,8 @@ func TestNewMetricDescriptors(t *testing.T) {
 		},
 		// SQL Warehouse metrics
 		{
-			name:   "QueriesTotal",
-			desc:   metrics.QueriesTotal,
+			name:   "Queries",
+			desc:   metrics.Queries,
 			labels: []string{labelWorkspaceID, labelWarehouseID},
 		},
 		{
@@ -105,8 +105,8 @@ func TestNewMetricDescriptors(t *testing.T) {
 			labels: []string{labelWorkspaceID, labelWarehouseID, labelQuantile},
 		},
 		{
-			name:   "QueryErrorsTotal",
-			desc:   metrics.QueryErrorsTotal,
+			name:   "QueryErrors",
+			desc:   metrics.QueryErrors,
 			labels: []string{labelWorkspaceID, labelWarehouseID},
 		},
 		{
@@ -165,12 +165,12 @@ func TestMetricDescriptors_Describe(t *testing.T) {
 		count++
 	}
 
-	// We expect 20 metrics:
+	// We expect 21 metrics:
 	// - 4 billing metrics
 	// - 5 jobs metrics
 	// - 5 pipelines metrics
 	// - 4 SQL warehouse metrics
-	// - 2 health metrics (exporter_up, scrape_status)
+	// - 3 health metrics (exporter_up, scrape_status, exporter_info)
 	expectedCount := 21
 	if count != expectedCount {
 		t.Errorf("Expected %d metric descriptors, got %d", expectedCount, count)
@@ -184,23 +184,23 @@ func TestMetricDescriptors_AllMetricsHaveDescriptions(t *testing.T) {
 		name string
 		desc *prometheus.Desc
 	}{
-		{"BillingDBUsTotal", metrics.BillingDBUsTotal},
+		{"BillingDBUs", metrics.BillingDBUs},
 		{"BillingCostEstimateUSD", metrics.BillingCostEstimateUSD},
 		{"PriceChangeEvents", metrics.PriceChangeEvents},
 		{"BillingScrapeErrors", metrics.BillingScrapeErrors},
-		{"JobRunsTotal", metrics.JobRunsTotal},
-		{"JobRunStatusTotal", metrics.JobRunStatusTotal},
+		{"JobRuns", metrics.JobRuns},
+		{"JobRunStatus", metrics.JobRunStatus},
 		{"JobRunDurationSeconds", metrics.JobRunDurationSeconds},
-		{"TaskRetriesTotal", metrics.TaskRetriesTotal},
-		{"JobSLAMissTotal", metrics.JobSLAMissTotal},
-		{"PipelineRunsTotal", metrics.PipelineRunsTotal},
-		{"PipelineRunStatusTotal", metrics.PipelineRunStatusTotal},
+		{"TaskRetries", metrics.TaskRetries},
+		{"JobSLAMiss", metrics.JobSLAMiss},
+		{"PipelineRuns", metrics.PipelineRuns},
+		{"PipelineRunStatus", metrics.PipelineRunStatus},
 		{"PipelineRunDurationSeconds", metrics.PipelineRunDurationSeconds},
-		{"PipelineRetryEventsTotal", metrics.PipelineRetryEventsTotal},
+		{"PipelineRetryEvents", metrics.PipelineRetryEvents},
 		{"PipelineFreshnessLagSeconds", metrics.PipelineFreshnessLagSeconds},
-		{"QueriesTotal", metrics.QueriesTotal},
+		{"Queries", metrics.Queries},
 		{"QueryDurationSeconds", metrics.QueryDurationSeconds},
-		{"QueryErrorsTotal", metrics.QueryErrorsTotal},
+		{"QueryErrors", metrics.QueryErrors},
 		{"QueriesRunning", metrics.QueriesRunning},
 		{"ExporterUp", metrics.ExporterUp},
 		{"ScrapeStatus", metrics.ScrapeStatus},

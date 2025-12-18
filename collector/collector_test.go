@@ -63,7 +63,7 @@ func TestCollectorDescribe(t *testing.T) {
 		descriptions = append(descriptions, desc)
 	}
 
-	// Should have all 20 metrics
+	// Should have all metrics
 	expectedCount := 21
 	if len(descriptions) != expectedCount {
 		t.Errorf("expected %d metric descriptions, got %d", expectedCount, len(descriptions))

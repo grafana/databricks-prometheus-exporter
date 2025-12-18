@@ -103,7 +103,7 @@ func BuildJobRunsQuery(lookback time.Duration) string {
 		SELECT 
 			t.workspace_id,
 			t.job_id,
-			COALESCE(j.name, 'unknown') as job_name,
+			COALESCE(j.name, CONCAT('job-', t.job_id)) as job_name,
 			COUNT(*) as run_count
 		FROM system.lakeflow.job_run_timeline t
 		LEFT JOIN (
@@ -124,7 +124,7 @@ func BuildJobRunStatusQuery(lookback time.Duration) string {
 		SELECT 
 			t.workspace_id,
 			t.job_id,
-			COALESCE(j.name, 'unknown') as job_name,
+			COALESCE(j.name, CONCAT('job-', t.job_id)) as job_name,
 			t.result_state as status,
 			COUNT(*) as run_count
 		FROM system.lakeflow.job_run_timeline t
@@ -155,7 +155,7 @@ func BuildJobRunDurationQuery(lookback time.Duration) string {
 			SELECT 
 				t.workspace_id,
 				t.job_id,
-				COALESCE(j.name, 'unknown') as job_name,
+				COALESCE(j.name, CONCAT('job-', t.job_id)) as job_name,
 				unix_timestamp(t.period_end_time) - unix_timestamp(t.period_start_time) as duration_seconds
 			FROM system.lakeflow.job_run_timeline t
 			LEFT JOIN (
@@ -179,7 +179,7 @@ func BuildTaskRetriesQuery(lookback time.Duration) string {
 		SELECT 
 			t.workspace_id,
 			t.job_id,
-			COALESCE(j.name, 'unknown') as job_name,
+			COALESCE(j.name, CONCAT('job-', t.job_id)) as job_name,
 			t.task_key,
 			COUNT(*) - COUNT(DISTINCT CONCAT(t.job_run_id, '-', t.task_key)) as retry_count
 		FROM system.lakeflow.job_task_run_timeline t
@@ -209,7 +209,7 @@ func BuildJobSLAMissQuery(lookback time.Duration, slaThresholdSeconds int) strin
 			SELECT 
 				t.workspace_id,
 				t.job_id,
-				COALESCE(j.name, 'unknown') as job_name,
+				COALESCE(j.name, CONCAT('job-', t.job_id)) as job_name,
 				unix_timestamp(t.period_end_time) - unix_timestamp(t.period_start_time) as duration_seconds
 			FROM system.lakeflow.job_run_timeline t
 			LEFT JOIN (
@@ -236,7 +236,7 @@ func BuildPipelineRunsQuery(lookback time.Duration) string {
 		SELECT 
 			t.workspace_id,
 			t.pipeline_id,
-			COALESCE(p.name, 'unknown') as pipeline_name,
+			COALESCE(p.name, CONCAT('pipeline-', t.pipeline_id)) as pipeline_name,
 			COUNT(*) as run_count
 		FROM system.lakeflow.pipeline_update_timeline t
 		LEFT JOIN (
@@ -257,7 +257,7 @@ func BuildPipelineRunStatusQuery(lookback time.Duration) string {
 		SELECT 
 			t.workspace_id,
 			t.pipeline_id,
-			COALESCE(p.name, 'unknown') as pipeline_name,
+			COALESCE(p.name, CONCAT('pipeline-', t.pipeline_id)) as pipeline_name,
 			t.result_state as status,
 			COUNT(*) as run_count
 		FROM system.lakeflow.pipeline_update_timeline t
@@ -288,7 +288,7 @@ func BuildPipelineRunDurationQuery(lookback time.Duration) string {
 			SELECT 
 				t.workspace_id,
 				t.pipeline_id,
-				COALESCE(p.name, 'unknown') as pipeline_name,
+				COALESCE(p.name, CONCAT('pipeline-', t.pipeline_id)) as pipeline_name,
 				unix_timestamp(t.period_end_time) - unix_timestamp(t.period_start_time) as duration_seconds
 			FROM system.lakeflow.pipeline_update_timeline t
 			LEFT JOIN (
@@ -312,7 +312,7 @@ func BuildPipelineRetryEventsQuery(lookback time.Duration) string {
 		SELECT 
 			t.workspace_id,
 			t.pipeline_id,
-			COALESCE(p.name, 'unknown') as pipeline_name,
+			COALESCE(p.name, CONCAT('pipeline-', t.pipeline_id)) as pipeline_name,
 			COUNT(*) - COUNT(DISTINCT t.update_id) as retry_count
 		FROM system.lakeflow.pipeline_update_timeline t
 		LEFT JOIN (
@@ -334,7 +334,7 @@ func BuildPipelineFreshnessLagQuery(lookback time.Duration) string {
 		SELECT 
 			t.workspace_id,
 			t.pipeline_id,
-			COALESCE(p.name, 'unknown') as pipeline_name,
+			COALESCE(p.name, CONCAT('pipeline-', t.pipeline_id)) as pipeline_name,
 			AVG(unix_timestamp(current_timestamp()) - unix_timestamp(t.period_end_time)) as freshness_lag_seconds
 		FROM system.lakeflow.pipeline_update_timeline t
 		LEFT JOIN (

@@ -22,7 +22,7 @@ all: check build
 # ============================================================================
 
 .PHONY: check
-check: vet lint fmt test ## Run all quality checks (vet, lint, fmt, test)
+check: vet lint fmt test-exporter-unit ## Run all quality checks (vet, lint, fmt, unit-tests)
 
 .PHONY: vet
 vet: ## Run go vet
@@ -55,14 +55,17 @@ fmt-fix: ## Auto-fix formatting issues
 	$(GO) fmt $(pkgs)
 
 .PHONY: test
-test: ## Run all tests
-	@echo ">> running tests"
+test: test-exporter-unit test-exporter-e2e ## Run all tests (unit + e2e)
+
+.PHONY: test-exporter-unit
+test-exporter-unit: ## Run unit tests only
+	@echo ">> running unit tests"
 	$(GO) test -race $(GOFLAGS) $(pkgs)
 
-.PHONY: test-short
-test-short: ## Run short tests only
-	@echo ">> running short tests"
-	$(GO) test -short $(GOFLAGS) $(pkgs)
+.PHONY: test-exporter-e2e
+test-exporter-e2e: ## Run e2e/integration tests only (requires Databricks credentials)
+	@echo ">> running e2e/integration tests (exporter + Databricks connection)"
+	$(GO) test -tags=integration -v -timeout 10m ./collector/...
 
 .PHONY: test-coverage
 test-coverage: ## Run tests with coverage report
@@ -95,31 +98,10 @@ clean: ## Remove build artifacts
 	rm -f coverage.out coverage.html
 
 # ============================================================================
-# Integration tests (require Databricks credentials)
-# ============================================================================
-#
-# These are software integration tests (https://en.wikipedia.org/wiki/Integration_testing)
-# that verify the exporter works correctly with a real Databricks instance.
-# They test the integration between the exporter code and Databricks APIs.
-#
-# NOTE: This is NOT a "Grafana Cloud Integration" test. It's a standard software
-# engineering integration test that validates the exporter + Databricks connection.
-
-.PHONY: test-integration
-test-integration: ## Run integration tests against real Databricks (requires credentials in env)
-	@echo ">> running integration tests (exporter + Databricks connection)"
-	$(GO) test -tags=integration -v -timeout 10m ./collector/...
-
-.PHONY: test-integration-fast
-test-integration-fast: ## Run integration tests with shorter timeout
-	@echo ">> running integration tests (fast)"
-	$(GO) test -tags=integration -v -timeout 3m ./collector/... -run TestIntegration_RealDatabricks
-
-# ============================================================================
 # Help
 # ============================================================================
 
 .PHONY: help
 help: ## Show this help
 	@echo "Available targets:"
-	@grep -E '^[a-zA-Z_-]+:.*##' Makefile | sed 's/:.*##/:/' | awk -F: '{printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*##' Makefile | sed 's/:.*##/:/' | awk -F: '{printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'

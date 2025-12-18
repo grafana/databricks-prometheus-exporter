@@ -16,7 +16,8 @@ function(this) {
       unit: 's',
       sources: {
         prometheus: {
-          expr: 'max(databricks_job_run_duration_seconds{%(queriesSelector)s, quantile="0.95"})',
+          expr: 'max(databricks_job_run_duration_seconds_sliding{%(queriesSelector)s, quantile="0.95"})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: 'Jobs p95',
         },
       },
@@ -25,12 +26,13 @@ function(this) {
     jobStatusBreakdown: {
       name: 'Job status breakdown',
       nameShort: 'Job status',
-      description: 'Job status counts by job name (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Job status counts by job name.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'increase(databricks_job_run_status_total{%(queriesSelector)s}[$__interval:] offset $__interval)',
+          expr: 'databricks_job_run_status_sliding{%(queriesSelector)s}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{job_name}} - {{status}}',
         },
       },
@@ -39,12 +41,13 @@ function(this) {
     jobFailures: {
       name: 'Job failures',
       nameShort: 'Job failures',
-      description: 'Number of failed job runs (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Number of failed job runs.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'increase(databricks_job_run_status_total{%(queriesSelector)s, status=~"FAILED|ERROR"}[$__interval:] offset $__interval)',
+          expr: 'databricks_job_run_status_sliding{%(queriesSelector)s, status=~"FAILED|ERROR"}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{workspace_id}}',
         },
       },
@@ -53,15 +56,17 @@ function(this) {
     jobSuccessRate: {
       name: 'Job success rate',
       nameShort: 'Success %',
-      description: 'Percentage of successful jobs (adapts to dashboard time range).',
+      description: 'Percentage of successful jobs.',
       type: 'raw',
       unit: 'percentunit',
       sources: {
         prometheus: {
           expr: |||
-            sum (increase(databricks_job_run_status_total{%(queriesSelector)s, status="SUCCEEDED"}[$__interval:] offset $__interval))
-            /
-            sum (increase(databricks_job_run_status_total{%(queriesSelector)s}[$__interval:] offset $__interval))
+            last_over_time((
+              sum(databricks_job_run_status_sliding{%(queriesSelector)s, status="SUCCEEDED"})
+              /
+              sum(databricks_job_run_status_sliding{%(queriesSelector)s})
+            )[30m:])
           ||| % {
             queriesSelector: '%(queriesSelector)s',
           },
@@ -78,7 +83,8 @@ function(this) {
       unit: 's',
       sources: {
         prometheus: {
-          expr: 'max(databricks_pipeline_run_duration_seconds{%(queriesSelector)s, quantile="0.95"})',
+          expr: 'max(databricks_pipeline_run_duration_seconds_sliding{%(queriesSelector)s, quantile="0.95"})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: 'Pipelines p95',
         },
       },
@@ -87,12 +93,13 @@ function(this) {
     pipelineStatusBreakdown: {
       name: 'Pipeline status breakdown',
       nameShort: 'Pipeline status',
-      description: 'Pipeline status counts by pipeline name (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Pipeline status counts by pipeline name.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'increase(databricks_pipeline_run_status_total{%(queriesSelector)s}[$__interval:] offset $__interval)',
+          expr: 'databricks_pipeline_run_status_sliding{%(queriesSelector)s}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{pipeline_name}} - {{status}}',
         },
       },
@@ -101,12 +108,13 @@ function(this) {
     pipelineFailures: {
       name: 'Pipeline failures',
       nameShort: 'Pipeline failures',
-      description: 'Number of failed pipeline runs (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Number of failed pipeline runs.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'increase(databricks_pipeline_run_status_total{%(queriesSelector)s, status="FAILED"}[$__interval:] offset $__interval)',
+          expr: 'databricks_pipeline_run_status_sliding{%(queriesSelector)s, status="FAILED"}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{workspace_id}}',
         },
       },
@@ -115,15 +123,17 @@ function(this) {
     pipelineSuccessRate: {
       name: 'Pipeline success rate',
       nameShort: 'Success %',
-      description: 'Percentage of successful pipelines (adapts to dashboard time range).',
+      description: 'Percentage of successful pipelines.',
       type: 'raw',
       unit: 'percentunit',
       sources: {
         prometheus: {
           expr: |||
-            sum (increase(databricks_pipeline_run_status_total{%(queriesSelector)s, status="COMPLETED"}[$__interval:] offset $__interval))
-            /
-            sum (increase(databricks_pipeline_run_status_total{%(queriesSelector)s}[$__interval:] offset $__interval))
+            last_over_time((
+              sum(databricks_pipeline_run_status_sliding{%(queriesSelector)s, status="COMPLETED"})
+              /
+              sum(databricks_pipeline_run_status_sliding{%(queriesSelector)s})
+            )[30m:])
           ||| % {
             queriesSelector: '%(queriesSelector)s',
           },
@@ -134,13 +144,14 @@ function(this) {
 
     jobsThroughput: {
       name: 'Jobs throughput',
-      nameShort: 'Jobs/min',
-      description: 'Job runs per interval (adapts to dashboard time range).',
-      type: 'raw',
+      nameShort: 'Jobs',
+      description: 'Total job runs in the sliding window.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'sum by (' + aggregationLabels + ') (increase(databricks_job_runs_total{%(queriesSelector)s}[$__interval:] offset $__interval))',
+          expr: 'sum by (' + aggregationLabels + ') (databricks_job_runs_sliding{%(queriesSelector)s})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: 'Jobs',
         },
       },
@@ -148,13 +159,14 @@ function(this) {
 
     pipelinesThroughput: {
       name: 'Pipelines throughput',
-      nameShort: 'Pipelines/min',
-      description: 'Pipeline runs per interval (adapts to dashboard time range).',
-      type: 'raw',
+      nameShort: 'Pipelines',
+      description: 'Total pipeline runs in the sliding window.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'sum by (' + aggregationLabels + ') (increase(databricks_pipeline_runs_total{%(queriesSelector)s}[$__interval:] offset $__interval))',
+          expr: 'sum by (' + aggregationLabels + ') (databricks_pipeline_runs_sliding{%(queriesSelector)s})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: 'Pipelines',
         },
       },
@@ -163,15 +175,17 @@ function(this) {
     jobFailureRate: {
       name: 'Job failure rate',
       nameShort: 'Job failures',
-      description: 'Job failure rate by workspace (adapts to dashboard time range).',
+      description: 'Job failure rate by workspace.',
       type: 'raw',
       unit: 'percentunit',
       sources: {
         prometheus: {
           expr: |||
-            sum by (workspace_id) (increase(databricks_job_run_status_total{%(queriesSelector)s, status=~"FAILED|ERROR"}[$__interval:] offset $__interval))
-            /
-            sum by (workspace_id) (increase(databricks_job_run_status_total{%(queriesSelector)s}[$__interval:] offset $__interval))
+            last_over_time((
+              sum by (workspace_id) (databricks_job_run_status_sliding{%(queriesSelector)s, status=~"FAILED|ERROR"})
+              /
+              sum by (workspace_id) (databricks_job_run_status_sliding{%(queriesSelector)s})
+            )[30m:])
           ||| % { queriesSelector: '%(queriesSelector)s' },
           legendCustomTemplate: '{{workspace_id}} - Jobs',
         },
@@ -181,15 +195,17 @@ function(this) {
     pipelineFailureRate: {
       name: 'Pipeline failure rate',
       nameShort: 'Pipeline failures',
-      description: 'Pipeline failure rate by workspace (adapts to dashboard time range).',
+      description: 'Pipeline failure rate by workspace.',
       type: 'raw',
       unit: 'percentunit',
       sources: {
         prometheus: {
           expr: |||
-            sum by (workspace_id) (increase(databricks_pipeline_run_status_total{%(queriesSelector)s, status="FAILED"}[$__interval:] offset $__interval))
-            /
-            sum by (workspace_id) (increase(databricks_pipeline_run_status_total{%(queriesSelector)s}[$__interval:] offset $__interval))
+            last_over_time((
+              sum by (workspace_id) (databricks_pipeline_run_status_sliding{%(queriesSelector)s, status="FAILED"})
+              /
+              sum by (workspace_id) (databricks_pipeline_run_status_sliding{%(queriesSelector)s})
+            )[30m:])
           ||| % { queriesSelector: '%(queriesSelector)s' },
           legendCustomTemplate: '{{workspace_id}} - Pipelines',
         },
@@ -199,12 +215,13 @@ function(this) {
     taskRetries: {
       name: 'Task retries',
       nameShort: 'Task retries',
-      description: 'Number of task retries (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Number of task retries.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'increase(databricks_task_retries_total{%(queriesSelector)s}[$__interval:] offset $__interval)',
+          expr: 'databricks_task_retries_sliding{%(queriesSelector)s}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{workspace_id}} - Task retries',
         },
       },
@@ -213,12 +230,13 @@ function(this) {
     pipelineRetries: {
       name: 'Pipeline retries',
       nameShort: 'Pipeline retries',
-      description: 'Number of pipeline retries (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Number of pipeline retries.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'increase(databricks_pipeline_retry_events_total{%(queriesSelector)s}[$__interval:] offset $__interval)',
+          expr: 'databricks_pipeline_retry_events_sliding{%(queriesSelector)s}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{workspace_id}} - Pipeline retries',
         },
       },
@@ -227,12 +245,13 @@ function(this) {
     jobFailuresByName: {
       name: 'Job failures by job name',
       nameShort: 'Job failures',
-      description: 'Number of failed job runs by job name (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Number of failed job runs by job name.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'increase(databricks_job_run_status_total{%(queriesSelector)s, status=~"ERROR|FAILED|CANCELLED"}[$__interval:] offset $__interval)',
+          expr: 'databricks_job_run_status_sliding{%(queriesSelector)s, status=~"ERROR|FAILED|CANCELLED"}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{job_name}}',
         },
       },
@@ -246,7 +265,8 @@ function(this) {
       unit: 's',
       sources: {
         prometheus: {
-          expr: 'databricks_job_run_duration_seconds{%(queriesSelector)s, quantile="0.95"}',
+          expr: 'databricks_job_run_duration_seconds_sliding{%(queriesSelector)s, quantile="0.95"}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{job_name}} (p95)',
         },
       },
@@ -255,12 +275,13 @@ function(this) {
     pipelineFailuresByName: {
       name: 'Pipeline failures by pipeline name',
       nameShort: 'Pipeline failures',
-      description: 'Number of failed pipeline runs by pipeline name (adapts to dashboard time range).',
-      type: 'raw',
+      description: 'Number of failed pipeline runs by pipeline name.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'increase(databricks_pipeline_run_status_total{%(queriesSelector)s, status="FAILED"}[$__interval:] offset $__interval)',
+          expr: 'databricks_pipeline_run_status_sliding{%(queriesSelector)s, status="FAILED"}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{pipeline_name}}',
         },
       },
@@ -274,7 +295,8 @@ function(this) {
       unit: 's',
       sources: {
         prometheus: {
-          expr: 'databricks_pipeline_run_duration_seconds{%(queriesSelector)s, quantile="0.95"}',
+          expr: 'databricks_pipeline_run_duration_seconds_sliding{%(queriesSelector)s, quantile="0.95"}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{pipeline_name}} (p95)',
         },
       },
@@ -288,7 +310,8 @@ function(this) {
       unit: 's',
       sources: {
         prometheus: {
-          expr: 'databricks_pipeline_freshness_lag_seconds{%(queriesSelector)s}',
+          expr: 'databricks_pipeline_freshness_lag_seconds_sliding{%(queriesSelector)s}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{pipeline_name}}',
         },
       },
@@ -305,7 +328,8 @@ function(this) {
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'sum by (workspace_id, job_id, job_name) (databricks_job_runs_total{%(queriesSelector)s})',
+          expr: 'sum by (workspace_id, job_id, job_name) (databricks_job_runs_sliding{%(queriesSelector)s})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{job_name}}',
         },
       },
@@ -319,7 +343,8 @@ function(this) {
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'sum by (job_id, job_name, task_key) (databricks_task_retries_total{%(queriesSelector)s})',
+          expr: 'sum by (job_id, job_name, task_key) (databricks_task_retries_sliding{%(queriesSelector)s})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{job_name}} / {{task_key}}',
         },
       },
@@ -328,12 +353,13 @@ function(this) {
     jobRunsByNameChartSignal: {
       name: 'Job runs by name (chart)',
       nameShort: 'Job runs',
-      description: 'Job runs over time by job name - adapts to dashboard time range (for chart display only).',
-      type: 'raw',
+      description: 'Job runs by job name.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'increase(databricks_job_runs_total{%(queriesSelector)s}[$__interval:] offset $__interval)',
+          expr: 'databricks_job_runs_sliding{%(queriesSelector)s}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{job_name}}',
         },
       },
@@ -347,7 +373,8 @@ function(this) {
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'sum by (workspace_id, pipeline_id, pipeline_name) (databricks_pipeline_runs_total{%(queriesSelector)s})',
+          expr: 'sum by (workspace_id, pipeline_id, pipeline_name) (databricks_pipeline_runs_sliding{%(queriesSelector)s})',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{pipeline_name}}',
         },
       },
@@ -356,12 +383,13 @@ function(this) {
     pipelineRunsByNameChartSignal: {
       name: 'Pipeline runs by name (chart)',
       nameShort: 'Pipeline runs',
-      description: 'Pipeline runs over time by pipeline name - adapts to dashboard time range (for chart display only).',
-      type: 'raw',
+      description: 'Pipeline runs by pipeline name.',
+      type: 'gauge',
       unit: 'short',
       sources: {
         prometheus: {
-          expr: 'increase(databricks_pipeline_runs_total{%(queriesSelector)s}[$__interval:] offset $__interval)',
+          expr: 'databricks_pipeline_runs_sliding{%(queriesSelector)s}',
+          exprWrappers: [['last_over_time(', '[30m:])']],
           legendCustomTemplate: '{{pipeline_name}}',
         },
       },

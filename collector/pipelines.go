@@ -43,10 +43,10 @@ func NewPipelinesCollector(ctx context.Context, db *sql.DB, metrics *MetricDescr
 
 // Describe sends the descriptors of each metric over the provided channel.
 func (c *PipelinesCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- c.metrics.PipelineRunsTotal
-	ch <- c.metrics.PipelineRunStatusTotal
+	ch <- c.metrics.PipelineRuns
+	ch <- c.metrics.PipelineRunStatus
 	ch <- c.metrics.PipelineRunDurationSeconds
-	ch <- c.metrics.PipelineRetryEventsTotal
+	ch <- c.metrics.PipelineRetryEvents
 	ch <- c.metrics.PipelineFreshnessLagSeconds
 	ch <- c.metrics.ScrapeStatus
 }
@@ -264,7 +264,7 @@ func (c *PipelinesCollector) collectPipelineRuns(ch chan<- prometheus.Metric) er
 
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
-				c.metrics.PipelineRunsTotal,
+				c.metrics.PipelineRuns,
 				prometheus.GaugeValue,
 				count.Float64,
 				workspaceID.String,
@@ -300,7 +300,7 @@ func (c *PipelinesCollector) collectPipelineRunStatus(ch chan<- prometheus.Metri
 
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
-				c.metrics.PipelineRunStatusTotal,
+				c.metrics.PipelineRunStatus,
 				prometheus.GaugeValue,
 				count.Float64,
 				workspaceID.String,
@@ -396,7 +396,7 @@ func (c *PipelinesCollector) collectPipelineRetryEvents(ch chan<- prometheus.Met
 
 		if retries.Valid {
 			ch <- prometheus.MustNewConstMetric(
-				c.metrics.PipelineRetryEventsTotal,
+				c.metrics.PipelineRetryEvents,
 				prometheus.GaugeValue,
 				retries.Float64,
 				workspaceID.String,

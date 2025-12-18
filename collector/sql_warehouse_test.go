@@ -61,7 +61,7 @@ func TestSQLWarehouseCollector_Describe(t *testing.T) {
 		descriptions = append(descriptions, desc)
 	}
 
-	expectedCount := 5 // QueriesTotal, QueryDurationSeconds, QueryErrorsTotal, QueriesRunning, ScrapeStatus
+	expectedCount := 5 // Queries, QueryDurationSeconds, QueryErrors, QueriesRunning, ScrapeStatus
 	if len(descriptions) != expectedCount {
 		t.Errorf("expected %d metric descriptions, got %d", expectedCount, len(descriptions))
 	}
@@ -98,7 +98,7 @@ func TestSQLWarehouseCollector_CollectQueries(t *testing.T) {
 	// Verify the queries_total metric was collected
 	found := false
 	for _, mf := range metricFamilies {
-		if *mf.Name == "databricks_queries_total" {
+		if *mf.Name == "databricks_queries_sliding" {
 			found = true
 			if len(mf.Metric) != 2 {
 				t.Errorf("expected 2 metrics, got %d", len(mf.Metric))
@@ -107,7 +107,7 @@ func TestSQLWarehouseCollector_CollectQueries(t *testing.T) {
 	}
 
 	if !found {
-		t.Error("expected databricks_queries_total metric not found")
+		t.Error("expected databricks_queries_sliding metric not found")
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -154,7 +154,7 @@ func TestSQLWarehouseCollector_CollectQueryErrors(t *testing.T) {
 	// Verify the query_errors_total metric was collected
 	found := false
 	for _, mf := range metricFamilies {
-		if *mf.Name == "databricks_query_errors_total" {
+		if *mf.Name == "databricks_query_errors_sliding" {
 			found = true
 			if len(mf.Metric) != 2 {
 				t.Errorf("expected 2 metrics, got %d", len(mf.Metric))
@@ -163,7 +163,7 @@ func TestSQLWarehouseCollector_CollectQueryErrors(t *testing.T) {
 	}
 
 	if !found {
-		t.Error("expected databricks_query_errors_total metric not found")
+		t.Error("expected databricks_query_errors_sliding metric not found")
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -209,7 +209,7 @@ func TestSQLWarehouseCollector_CollectQueryDuration(t *testing.T) {
 	// Verify the query_duration_seconds metric was collected
 	found := false
 	for _, mf := range metricFamilies {
-		if *mf.Name == "databricks_query_duration_seconds" {
+		if *mf.Name == "databricks_query_duration_seconds_sliding" {
 			found = true
 			if len(mf.Metric) != 3 {
 				t.Errorf("expected 3 metrics (p50, p95, p99), got %d", len(mf.Metric))
@@ -218,7 +218,7 @@ func TestSQLWarehouseCollector_CollectQueryDuration(t *testing.T) {
 	}
 
 	if !found {
-		t.Error("expected databricks_query_duration_seconds metric not found")
+		t.Error("expected databricks_query_duration_seconds_sliding metric not found")
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {

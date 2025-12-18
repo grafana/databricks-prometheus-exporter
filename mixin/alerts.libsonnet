@@ -8,10 +8,10 @@
             alert: 'DatabricksWarnSpendSpike',
             expr: |||
               (
-                sum by (job, workspace_id) (databricks_billing_cost_estimate_usd{} offset 1d)
-                - sum by (job, workspace_id) (databricks_billing_cost_estimate_usd{} offset 2d)
+                sum by (job, workspace_id) (databricks_billing_cost_estimate_usd_sliding{} offset 1d)
+                - sum by (job, workspace_id) (databricks_billing_cost_estimate_usd_sliding{} offset 2d)
               )
-              / sum by (job, workspace_id) (databricks_billing_cost_estimate_usd{} offset 2d)
+              / sum by (job, workspace_id) (databricks_billing_cost_estimate_usd_sliding{} offset 2d)
               > (%(alertsSpendSpikeWarning)s / 100)
             ||| % this.config,
             'for': '5m',
@@ -29,10 +29,10 @@
             alert: 'DatabricksCriticalSpendSpike',
             expr: |||
               (
-                sum by (job, workspace_id) (databricks_billing_cost_estimate_usd{} offset 1d)
-                - sum by (job, workspace_id) (databricks_billing_cost_estimate_usd{} offset 2d)
+                sum by (job, workspace_id) (databricks_billing_cost_estimate_usd_sliding{} offset 1d)
+                - sum by (job, workspace_id) (databricks_billing_cost_estimate_usd_sliding{} offset 2d)
               )
-              / sum by (job, workspace_id) (databricks_billing_cost_estimate_usd{} offset 2d)
+              / sum by (job, workspace_id) (databricks_billing_cost_estimate_usd_sliding{} offset 2d)
               > (%(alertsSpendSpikeCritical)s / 100)
             ||| % this.config,
             'for': '5m',
@@ -49,9 +49,9 @@
           {
             alert: 'DatabricksWarnNoBillingData',
             expr: |||
-              (max_over_time(databricks_billing_dbus_total{}[6h]) > 0)
+              (max_over_time(databricks_billing_dbus_sliding{}[6h]) > 0)
               and
-              (increase(databricks_billing_dbus_total{}[%(alertsNoBillingDataWarningLookback)s]) == 0)
+              (increase(databricks_billing_dbus_sliding{}[%(alertsNoBillingDataWarningLookback)s]) == 0)
             ||| % this.config,
             'for': '5m',
             labels: {
@@ -67,9 +67,9 @@
           {
             alert: 'DatabricksCriticalNoBillingData',
             expr: |||
-              (max_over_time(databricks_billing_dbus_total{}[6h]) > 0)
+              (max_over_time(databricks_billing_dbus_sliding{}[6h]) > 0)
               and
-              (increase(databricks_billing_dbus_total{}[%(alertsNoBillingDataCriticalLookback)s]) == 0)
+              (increase(databricks_billing_dbus_sliding{}[%(alertsNoBillingDataCriticalLookback)s]) == 0)
             ||| % this.config,
             'for': '5m',
             labels: {
@@ -88,8 +88,8 @@
             alert: 'DatabricksWarnJobFailureRate',
             expr: |||
               (
-                sum by (job, workspace_id) (increase(databricks_job_run_status_total{status="FAILED"}[1h]))
-                / sum by (job, workspace_id) (increase(databricks_job_run_status_total{}[1h]))
+                sum by (job, workspace_id) (increase(databricks_job_run_status_sliding{status="FAILED"}[1h]))
+                / sum by (job, workspace_id) (increase(databricks_job_run_status_sliding{}[1h]))
               ) > (%(alertsJobFailureRateWarning)s / 100)
             ||| % this.config,
             'for': '5m',
@@ -107,8 +107,8 @@
             alert: 'DatabricksCriticalJobFailureRate',
             expr: |||
               (
-                sum by (job, workspace_id) (increase(databricks_job_run_status_total{status="FAILED"}[2h]))
-                / sum by (job, workspace_id) (increase(databricks_job_run_status_total{}[2h]))
+                sum by (job, workspace_id) (increase(databricks_job_run_status_sliding{status="FAILED"}[2h]))
+                / sum by (job, workspace_id) (increase(databricks_job_run_status_sliding{}[2h]))
               ) > (%(alertsJobFailureRateCritical)s / 100)
             ||| % this.config,
             'for': '5m',
@@ -126,8 +126,8 @@
             alert: 'DatabricksWarnJobDurationRegression',
             expr: |||
               (
-                databricks_job_run_duration_seconds{quantile="0.95"}
-                / quantile_over_time(0.5, databricks_job_run_duration_seconds{quantile="0.95"}[7d])
+                databricks_job_run_duration_seconds_sliding{quantile="0.95"}
+                / quantile_over_time(0.5, databricks_job_run_duration_seconds_sliding{quantile="0.95"}[7d])
               ) - 1 > (%(alertsJobDurationRegressionWarning)s / 100)
             ||| % this.config,
             'for': '5m',
@@ -145,8 +145,8 @@
             alert: 'DatabricksCriticalJobDurationRegression',
             expr: |||
               (
-                databricks_job_run_duration_seconds{quantile="0.95"}
-                / quantile_over_time(0.5, databricks_job_run_duration_seconds{quantile="0.95"}[7d])
+                databricks_job_run_duration_seconds_sliding{quantile="0.95"}
+                / quantile_over_time(0.5, databricks_job_run_duration_seconds_sliding{quantile="0.95"}[7d])
               ) - 1 > (%(alertsJobDurationRegressionCritical)s / 100)
             ||| % this.config,
             'for': '5m',
@@ -166,8 +166,8 @@
             alert: 'DatabricksWarnPipelineFailureRate',
             expr: |||
               (
-                sum by (job, workspace_id) (increase(databricks_pipeline_run_status_total{status="FAILED"}[1h]))
-                / sum by (job, workspace_id) (increase(databricks_pipeline_run_status_total{}[1h]))
+                sum by (job, workspace_id) (increase(databricks_pipeline_run_status_sliding{status="FAILED"}[1h]))
+                / sum by (job, workspace_id) (increase(databricks_pipeline_run_status_sliding{}[1h]))
               ) > (%(alertsPipelineFailureRateWarning)s / 100)
             ||| % this.config,
             'for': '5m',
@@ -185,8 +185,8 @@
             alert: 'DatabricksCriticalPipelineFailureRate',
             expr: |||
               (
-                sum by (job, workspace_id) (increase(databricks_pipeline_run_status_total{status="FAILED"}[1h]))
-                / sum by (job, workspace_id) (increase(databricks_pipeline_run_status_total{}[1h]))
+                sum by (job, workspace_id) (increase(databricks_pipeline_run_status_sliding{status="FAILED"}[1h]))
+                / sum by (job, workspace_id) (increase(databricks_pipeline_run_status_sliding{}[1h]))
               ) > (%(alertsPipelineFailureRateCritical)s / 100)
             ||| % this.config,
             'for': '5m',
@@ -204,8 +204,8 @@
             alert: 'DatabricksWarnPipelineDurationRegression',
             expr: |||
               (
-                databricks_pipeline_run_duration_seconds{quantile="0.95"}
-                / quantile_over_time(0.5, databricks_pipeline_run_duration_seconds{quantile="0.95"}[7d])
+                databricks_pipeline_run_duration_seconds_sliding{quantile="0.95"}
+                / quantile_over_time(0.5, databricks_pipeline_run_duration_seconds_sliding{quantile="0.95"}[7d])
               ) - 1 > (%(alertsPipelineDurationRegressionWarning)s / 100)
             ||| % this.config,
             'for': '5m',
@@ -223,8 +223,8 @@
             alert: 'DatabricksCritPipelineDurationHigh',
             expr: |||
               (
-                databricks_pipeline_run_duration_seconds{quantile="0.95"}
-                / quantile_over_time(0.5, databricks_pipeline_run_duration_seconds{quantile="0.95"}[7d])
+                databricks_pipeline_run_duration_seconds_sliding{quantile="0.95"}
+                / quantile_over_time(0.5, databricks_pipeline_run_duration_seconds_sliding{quantile="0.95"}[7d])
               ) - 1 > (%(alertsPipelineDurationRegressionCritical)s / 100)
             ||| % this.config,
             'for': '5m',
@@ -244,8 +244,8 @@
             alert: 'DatabricksWarnSqlQueryErrorRate',
             expr: |||
               (
-                sum by (job, workspace_id) (rate(databricks_query_errors_total{}[30m]))
-                / sum by (job, workspace_id) (rate(databricks_queries_total{}[30m]))
+                sum by (job, workspace_id) (rate(databricks_query_errors_sliding{}[30m]))
+                / sum by (job, workspace_id) (rate(databricks_queries_sliding{}[30m]))
               ) > (%(alertsSqlQueryErrorRateWarning)s / 100)
             ||| % this.config,
             'for': '1h',
@@ -263,8 +263,8 @@
             alert: 'DatabricksCriticalSqlQueryErrorRate',
             expr: |||
               (
-                sum by (job, workspace_id) (rate(databricks_query_errors_total{}[30m]))
-                / sum by (job, workspace_id) (rate(databricks_queries_total{}[30m]))
+                sum by (job, workspace_id) (rate(databricks_query_errors_sliding{}[30m]))
+                / sum by (job, workspace_id) (rate(databricks_queries_sliding{}[30m]))
               ) > (%(alertsSqlQueryErrorRateCritical)s / 100)
             ||| % this.config,
             'for': '1h',
@@ -282,8 +282,8 @@
             alert: 'DatabricksWarnSqlQueryLatencyRegression',
             expr: |||
               (
-                databricks_query_duration_seconds{quantile="0.95"}
-                / quantile_over_time(0.5, databricks_query_duration_seconds{quantile="0.95"}[7d])
+                databricks_query_duration_seconds_sliding{quantile="0.95"}
+                / quantile_over_time(0.5, databricks_query_duration_seconds_sliding{quantile="0.95"}[7d])
               ) - 1 > (%(alertsSqlQueryLatencyRegressionWarning)s / 100)
             ||| % this.config,
             'for': '5m',
@@ -301,8 +301,8 @@
             alert: 'DatabricksCritQueryLatencyHigh',
             expr: |||
               (
-                databricks_query_duration_seconds{quantile="0.95"}
-                / quantile_over_time(0.5, databricks_query_duration_seconds{quantile="0.95"}[7d])
+                databricks_query_duration_seconds_sliding{quantile="0.95"}
+                / quantile_over_time(0.5, databricks_query_duration_seconds_sliding{quantile="0.95"}[7d])
               ) - 1 > (%(alertsSqlQueryLatencyRegressionCritical)s / 100)
             ||| % this.config,
             'for': '5m',

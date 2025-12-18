@@ -98,7 +98,7 @@ func TestJobsCollector_CollectJobRuns(t *testing.T) {
 	// Verify the job_runs_total metric was collected
 	found := false
 	for _, mf := range metricFamilies {
-		if *mf.Name == "databricks_job_runs_total" {
+		if *mf.Name == "databricks_job_runs_sliding" {
 			found = true
 			if len(mf.Metric) != 2 {
 				t.Errorf("expected 2 metrics, got %d", len(mf.Metric))
@@ -107,7 +107,7 @@ func TestJobsCollector_CollectJobRuns(t *testing.T) {
 	}
 
 	if !found {
-		t.Error("expected databricks_job_runs_total metric not found")
+		t.Error("expected databricks_job_runs_sliding metric not found")
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -137,7 +137,7 @@ func TestJobsCollector_CollectJobRunStatus(t *testing.T) {
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "p50", "p95", "p99"}))
 
-		// Note: task_run_timeline query is skipped when CollectTaskRetries=false (default)
+	// Note: task_run_timeline query is skipped when CollectTaskRetries=false (default)
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").
 		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "sla_miss_count"}))
 
@@ -157,7 +157,7 @@ func TestJobsCollector_CollectJobRunStatus(t *testing.T) {
 	// Verify the job_run_status_total metric was collected
 	found := false
 	for _, mf := range metricFamilies {
-		if *mf.Name == "databricks_job_run_status_total" {
+		if *mf.Name == "databricks_job_run_status_sliding" {
 			found = true
 			if len(mf.Metric) != 3 {
 				t.Errorf("expected 3 metrics, got %d", len(mf.Metric))
@@ -166,7 +166,7 @@ func TestJobsCollector_CollectJobRunStatus(t *testing.T) {
 	}
 
 	if !found {
-		t.Error("expected databricks_job_run_status_total metric not found")
+		t.Error("expected databricks_job_run_status_sliding metric not found")
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -213,7 +213,7 @@ func TestJobsCollector_CollectJobRunDuration(t *testing.T) {
 	// Verify the job_run_duration_seconds metric was collected
 	found := false
 	for _, mf := range metricFamilies {
-		if *mf.Name == "databricks_job_run_duration_seconds" {
+		if *mf.Name == "databricks_job_run_duration_seconds_sliding" {
 			found = true
 			if len(mf.Metric) != 3 {
 				t.Errorf("expected 3 metrics (p50, p95, p99), got %d", len(mf.Metric))
@@ -222,7 +222,7 @@ func TestJobsCollector_CollectJobRunDuration(t *testing.T) {
 	}
 
 	if !found {
-		t.Error("expected databricks_job_run_duration_seconds metric not found")
+		t.Error("expected databricks_job_run_duration_seconds_sliding metric not found")
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {

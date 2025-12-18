@@ -1,4 +1,4 @@
-# Databricks Mixin
+# Databricks mixin
 
 A set of Grafana dashboards and prometheus-compatible alerts for monitoring Databricks.
 
@@ -52,37 +52,14 @@ SQL warehouse performance and monitoring:
 
 ## Metrics
 
-The mixin expects the following metrics from the Databricks Prometheus exporter. Note: Most metrics are Gauges because they represent sliding window counts that can decrease as the window moves forward.
+The mixin expects metrics from the Databricks Prometheus exporter. For the complete list of metrics with descriptions, labels, and source tables, see the **[Metrics Reference](../docs/metrics-reference.md)**.
 
-### Billing and cost
-- `databricks_billing_dbus_total{workspace_id, sku_name}` - DBUs consumed (sliding window, default 24h)
-- `databricks_billing_cost_estimate_usd{workspace_id, sku_name}` - Cost estimates (sliding window, default 24h)
-
-### Jobs
-- `databricks_job_runs_total{workspace_id, job_id, job_name}` - Job runs (sliding window, default 2h)
-- `databricks_job_run_duration_seconds{workspace_id, job_id, job_name, quantile}` - Job duration quantiles (p50, p95, p99)
-- `databricks_job_run_status_total{workspace_id, job_id, job_name, status}` - Job status counts
-- `databricks_task_retries_total{workspace_id, job_id, job_name, task_key}` - Task retry counts
-
-### Pipelines
-- `databricks_pipeline_runs_total{workspace_id, pipeline_id, pipeline_name}` - Pipeline runs (sliding window, default 2h)
-- `databricks_pipeline_run_duration_seconds{workspace_id, pipeline_id, pipeline_name, quantile}` - Pipeline duration quantiles (p50, p95, p99)
-- `databricks_pipeline_run_status_total{workspace_id, pipeline_id, pipeline_name, status}` - Pipeline status counts
-- `databricks_pipeline_retry_events_total{workspace_id, pipeline_id, pipeline_name}` - Pipeline retry events
-- `databricks_pipeline_freshness_lag_seconds{workspace_id, pipeline_id, pipeline_name}` - Data freshness lag
-
-### SQL queries and warehouses
-- `databricks_queries_total{workspace_id, warehouse_id}` - Queries executed (sliding window, default 1h)
-- `databricks_query_duration_seconds{workspace_id, warehouse_id, quantile}` - Query duration quantiles (p50, p95, p99)
-- `databricks_query_errors_total{workspace_id, warehouse_id}` - Failed queries
-- `databricks_queries_running{workspace_id, warehouse_id}` - Concurrent queries
-
-### System and health
-- `databricks_exporter_up` - Exporter connectivity (1=healthy, 0=failed)
-- `databricks_scrape_status{query}` - Per-query scrape status (1=success, 0=failure)
-- `databricks_exporter_info{version, billing_window, jobs_window, pipelines_window, queries_window}` - Build and configuration info
-
-All metrics include standard Prometheus labels `job` and `instance` for scrape identification.
+**Summary:**
+- **Billing**: DBUs, cost estimates, price changes (24h sliding window)
+- **Jobs**: Run counts, durations, status, retries, SLA misses (4h sliding window)
+- **Pipelines**: Run counts, durations, status, retries, freshness lag (4h sliding window)
+- **SQL Queries**: Query counts, errors, durations, concurrency (2h sliding window)
+- **Health**: Exporter connectivity, scrape status, build info
 
 ## Alerts
 
@@ -142,6 +119,19 @@ This will generate a `prometheus_alerts.yaml` file containing all alert rules.
 
 ## Configuration
 
+### Scrape interval requirements
+
+The dashboards use `last_over_time(...[30m:])` to handle sparse data from infrequent scrapes. This requires:
+
+| Setting | Minimum | Maximum |
+|---------|---------|---------|
+| `scrape_interval` | 10m | 30m |
+| `scrape_timeout` | 9m | 29m |
+
+See the main [README - Prometheus Configuration](../README.md#prometheus-configuration) for detailed configuration examples.
+
+### Mixin configuration
+
 The mixin can be configured via `config.libsonnet`. Key configuration options include:
 
 - `filteringSelector` - Prometheus label selector (default: `''`)
@@ -190,12 +180,7 @@ make prometheus_alerts.yaml
 
 ### Pipeline metrics require permissions on `system.lakeflow.pipeline_update_timeline`
 
-**Affected Metrics:**
-- `databricks_pipeline_runs_total`
-- `databricks_pipeline_run_status_total`
-- `databricks_pipeline_run_duration_seconds`
-- `databricks_pipeline_retry_events_total`
-- `databricks_pipeline_freshness_lag_seconds`
+**Affected metrics:** All `databricks_pipeline_*` metrics. See [Metrics reference](../docs/metrics-reference.md#pipeline-metrics) for the full list.
 
 **Issue:** The `system.lakeflow.pipeline_update_timeline` table exists but the Service Principal may not have `SELECT` permission on it.
 

@@ -33,11 +33,11 @@ func NewJobsCollector(ctx context.Context, db *sql.DB, metrics *MetricDescriptor
 
 // Describe sends the descriptors of each metric over the provided channel.
 func (c *JobsCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- c.metrics.JobRunsTotal
-	ch <- c.metrics.JobRunStatusTotal
+	ch <- c.metrics.JobRuns
+	ch <- c.metrics.JobRunStatus
 	ch <- c.metrics.JobRunDurationSeconds
-	ch <- c.metrics.TaskRetriesTotal
-	ch <- c.metrics.JobSLAMissTotal
+	ch <- c.metrics.TaskRetries
+	ch <- c.metrics.JobSLAMiss
 	ch <- c.metrics.ScrapeStatus
 }
 
@@ -106,7 +106,7 @@ func (c *JobsCollector) collectJobRuns(ch chan<- prometheus.Metric) error {
 
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
-				c.metrics.JobRunsTotal,
+				c.metrics.JobRuns,
 				prometheus.GaugeValue,
 				count.Float64,
 				workspaceID.String,
@@ -142,7 +142,7 @@ func (c *JobsCollector) collectJobRunStatus(ch chan<- prometheus.Metric) error {
 
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
-				c.metrics.JobRunStatusTotal,
+				c.metrics.JobRunStatus,
 				prometheus.GaugeValue,
 				count.Float64,
 				workspaceID.String,
@@ -243,7 +243,7 @@ func (c *JobsCollector) collectTaskRetries(ch chan<- prometheus.Metric) error {
 
 		if retries.Valid {
 			ch <- prometheus.MustNewConstMetric(
-				c.metrics.TaskRetriesTotal,
+				c.metrics.TaskRetries,
 				prometheus.GaugeValue,
 				retries.Float64,
 				workspaceID.String,
@@ -284,7 +284,7 @@ func (c *JobsCollector) collectJobSLAMiss(ch chan<- prometheus.Metric) error {
 
 		if count.Valid {
 			ch <- prometheus.MustNewConstMetric(
-				c.metrics.JobSLAMissTotal,
+				c.metrics.JobSLAMiss,
 				prometheus.GaugeValue,
 				count.Float64,
 				workspaceID.String,
