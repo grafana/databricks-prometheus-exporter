@@ -1,6 +1,6 @@
 ARG ARCH="amd64"
 ARG OS="linux"
-FROM quay.io/prometheus/busybox-${OS}-${ARCH}:latest
+FROM quay.io/prometheus/busybox-${OS}-${ARCH}:4eb7e9b
 
 ARG ARCH="amd64"
 ARG OS="linux"

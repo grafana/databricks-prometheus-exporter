@@ -1,0 +1,383 @@
+package collector
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/prometheus/common/promslog"
+)
+
+func TestNewPipelinesCollector(t *testing.T) {
+	logger := promslog.NewNopLogger()
+	db, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock db: %v", err)
+	}
+	defer db.Close()
+
+	metrics := NewMetricDescriptors()
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
+
+	if collector == nil {
+		t.Fatal("expected collector to be created, got nil")
+	}
+
+	if collector.logger == nil {
+		t.Error("collector logger should not be nil")
+	}
+
+	if collector.db == nil {
+		t.Error("collector db should not be nil")
+	}
+
+	if collector.metrics == nil {
+		t.Error("collector metrics should not be nil")
+	}
+}
+
+func TestPipelinesCollector_Describe(t *testing.T) {
+	logger := promslog.NewNopLogger()
+	db, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock db: %v", err)
+	}
+	defer db.Close()
+
+	metrics := NewMetricDescriptors()
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
+
+	descCh := make(chan *prometheus.Desc, 10)
+	go func() {
+		collector.Describe(descCh)
+		close(descCh)
+	}()
+
+	descriptions := make([]*prometheus.Desc, 0)
+	for desc := range descCh {
+		descriptions = append(descriptions, desc)
+	}
+
+	expectedCount := 6 // PipelineRuns, PipelineRunStatus, PipelineRunDuration, PipelineRetryEvents, PipelineFreshnessLag, ScrapeStatus
+	if len(descriptions) != expectedCount {
+		t.Errorf("expected %d metric descriptions, got %d", expectedCount, len(descriptions))
+	}
+}
+
+func TestPipelinesCollector_CollectPipelineRuns(t *testing.T) {
+	logger := promslog.NewNopLogger()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock db: %v", err)
+	}
+	defer db.Close()
+
+	// Mock table availability check (must come first)
+	availRows := sqlmock.NewRows([]string{"1"}).AddRow(1)
+	mock.ExpectQuery("SELECT 1 FROM system.lakeflow.pipeline_update_timeline LIMIT 1").WillReturnRows(availRows)
+
+	// Mock query result
+	rows := sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "run_count"}).
+		AddRow("123456789", "pipe1", "Test Pipeline 1", 200.0).
+		AddRow("987654321", "pipe2", "Test Pipeline 2", 150.0)
+
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").WillReturnRows(rows)
+
+	metrics := NewMetricDescriptors()
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
+
+	// Create a registry and register the collector
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(collector)
+
+	// Gather metrics
+	metricFamilies, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("failed to gather metrics: %v", err)
+	}
+
+	// Verify the pipeline_runs_total metric was collected
+	found := false
+	for _, mf := range metricFamilies {
+		if *mf.Name == "databricks_pipeline_runs_sliding" {
+			found = true
+			if len(mf.Metric) != 2 {
+				t.Errorf("expected 2 metrics, got %d", len(mf.Metric))
+			}
+		}
+	}
+
+	if !found {
+		t.Error("expected databricks_pipeline_runs_sliding metric not found")
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %v", err)
+	}
+}
+
+func TestPipelinesCollector_CollectPipelineRunStatus(t *testing.T) {
+	logger := promslog.NewNopLogger()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock db: %v", err)
+	}
+	defer db.Close()
+
+	// Mock table availability check (must come first)
+	availRows := sqlmock.NewRows([]string{"1"}).AddRow(1)
+	mock.ExpectQuery("SELECT 1 FROM system.lakeflow.pipeline_update_timeline LIMIT 1").WillReturnRows(availRows)
+
+	// Mock all queries to prevent errors
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "run_count"}))
+
+	rows := sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "status", "run_count"}).
+		AddRow("123456789", "pipe1", "Test Pipeline 1", "COMPLETED", 180.0).
+		AddRow("123456789", "pipe1", "Test Pipeline 1", "FAILED", 15.0).
+		AddRow("987654321", "pipe2", "Test Pipeline 2", "COMPLETED", 140.0)
+
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").WillReturnRows(rows)
+
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "p50", "p95", "p99"}))
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "retry_count"}))
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}))
+
+	metrics := NewMetricDescriptors()
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
+
+	// Create a registry and register the collector
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(collector)
+
+	// Gather metrics
+	metricFamilies, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("failed to gather metrics: %v", err)
+	}
+
+	// Verify the pipeline_run_status_total metric was collected
+	found := false
+	for _, mf := range metricFamilies {
+		if *mf.Name == "databricks_pipeline_run_status_sliding" {
+			found = true
+			if len(mf.Metric) != 3 {
+				t.Errorf("expected 3 metrics, got %d", len(mf.Metric))
+			}
+		}
+	}
+
+	if !found {
+		t.Error("expected databricks_pipeline_run_status_sliding metric not found")
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %v", err)
+	}
+}
+
+func TestPipelinesCollector_CollectPipelineRunDuration(t *testing.T) {
+	logger := promslog.NewNopLogger()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock db: %v", err)
+	}
+	defer db.Close()
+
+	// Mock table availability check (must come first)
+	availRows := sqlmock.NewRows([]string{"1"}).AddRow(1)
+	mock.ExpectQuery("SELECT 1 FROM system.lakeflow.pipeline_update_timeline LIMIT 1").WillReturnRows(availRows)
+
+	// Mock all queries
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "run_count"}))
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "status", "run_count"}))
+
+	rows := sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "p50", "p95", "p99"}).
+		AddRow("123456789", "pipe1", "Test Pipeline 1", 450.5, 1250.8, 2100.3)
+
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").WillReturnRows(rows)
+
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "retry_count"}))
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}))
+
+	metrics := NewMetricDescriptors()
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
+
+	// Create a registry and register the collector
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(collector)
+
+	// Gather metrics
+	metricFamilies, err := registry.Gather()
+	if err != nil {
+		t.Fatalf("failed to gather metrics: %v", err)
+	}
+
+	// Verify the pipeline_run_duration_seconds metric was collected
+	found := false
+	for _, mf := range metricFamilies {
+		if *mf.Name == "databricks_pipeline_run_duration_seconds_sliding" {
+			found = true
+			if len(mf.Metric) != 3 {
+				t.Errorf("expected 3 metrics (p50, p95, p99), got %d", len(mf.Metric))
+			}
+		}
+	}
+
+	if !found {
+		t.Error("expected databricks_pipeline_run_duration_seconds_sliding metric not found")
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %v", err)
+	}
+}
+
+func TestPipelinesCollector_CollectWithError(t *testing.T) {
+	logger := promslog.NewNopLogger()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock db: %v", err)
+	}
+	defer db.Close()
+
+	// Mock table availability check (table exists)
+	availRows := sqlmock.NewRows([]string{"1"}).AddRow(1)
+	mock.ExpectQuery("SELECT 1 FROM system.lakeflow.pipeline_update_timeline LIMIT 1").WillReturnRows(availRows)
+
+	// Simulate a query error
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnError(errors.New("database connection lost"))
+
+	// Mock remaining queries as empty
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "status", "run_count"}))
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "p50", "p95", "p99"}))
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "retry_count"}))
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}))
+
+	metrics := NewMetricDescriptors()
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
+
+	ch := make(chan prometheus.Metric, 10)
+	go func() {
+		collector.Collect(ch)
+		close(ch)
+	}()
+
+	// Drain the channel
+	count := 0
+	for range ch {
+		count++
+	}
+
+	// Should still collect other metrics despite the error
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %v", err)
+	}
+}
+
+func TestPipelinesCollector_CollectRetryEvents(t *testing.T) {
+	logger := promslog.NewNopLogger()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock db: %v", err)
+	}
+	defer db.Close()
+
+	// Mock table availability check (must come first)
+	availRows := sqlmock.NewRows([]string{"1"}).AddRow(1)
+	mock.ExpectQuery("SELECT 1 FROM system.lakeflow.pipeline_update_timeline LIMIT 1").WillReturnRows(availRows)
+
+	// Mock all queries
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "run_count"}))
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "status", "run_count"}))
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "p50", "p95", "p99"}))
+
+	rows := sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "retry_count"}).
+		AddRow("123456789", "pipe1", "Test Pipeline 1", 18.0).
+		AddRow("987654321", "pipe2", "Test Pipeline 2", 9.0)
+
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").WillReturnRows(rows)
+
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}))
+
+	metrics := NewMetricDescriptors()
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
+
+	ch := make(chan prometheus.Metric, 10)
+	go func() {
+		collector.Collect(ch)
+		close(ch)
+	}()
+
+	// Drain the channel
+	for range ch {
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %v", err)
+	}
+}
+
+func TestPipelinesCollector_CollectFreshnessLag(t *testing.T) {
+	logger := promslog.NewNopLogger()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock db: %v", err)
+	}
+	defer db.Close()
+
+	// Mock table availability check (must come first)
+	availRows := sqlmock.NewRows([]string{"1"}).AddRow(1)
+	mock.ExpectQuery("SELECT 1 FROM system.lakeflow.pipeline_update_timeline LIMIT 1").WillReturnRows(availRows)
+
+	// Mock all queries
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "run_count"}))
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "status", "run_count"}))
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "p50", "p95", "p99"}))
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").
+		WillReturnRows(sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "retry_count"}))
+
+	rows := sqlmock.NewRows([]string{"workspace_id", "pipeline_id", "pipeline_name", "lag_seconds"}).
+		AddRow("123456789", "pipe1", "Test Pipeline 1", 120.5).
+		AddRow("123456789", "pipe2", "Test Pipeline 2", 45.2).
+		AddRow("987654321", "pipe3", "Test Pipeline 3", 200.8)
+
+	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.pipeline_update_timeline").WillReturnRows(rows)
+
+	metrics := NewMetricDescriptors()
+	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
+
+	// Use testutil to count metrics
+	count := testutil.CollectAndCount(collector)
+
+	// Should have metrics from all collectors
+	if count < 3 {
+		t.Errorf("expected at least 3 freshness lag metrics, got %d", count)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %v", err)
+	}
+}

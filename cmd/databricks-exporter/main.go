@@ -1,17 +1,3 @@
-// Copyright 2025 Grafana Labs
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package main
 
 import (
@@ -21,33 +7,47 @@ import (
 	"os"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/grafana/databricks-prometheus-exporter/collector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/promlog"
-	"github.com/prometheus/common/promlog/flag"
+	"github.com/prometheus/common/promslog"
+	"github.com/prometheus/common/promslog/flag"
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 )
 
 var (
-	webConfig      = webflag.AddFlags(kingpin.CommandLine, ":9976")
-	metricPath     = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").Envar("DATABRICKS_EXPORTER_WEB_TELEMETRY_PATH").String()
-	serverHostname = kingpin.Flag("server-hostname", "The Databricks workspace hostname (e.g., dbc-abc123-def456.cloud.databricks.com).").Envar("DATABRICKS_EXPORTER_SERVER_HOSTNAME").Required().String()
-	httpPath       = kingpin.Flag("http-path", "The HTTP path of the SQL warehouse.").Envar("DATABRICKS_EXPORTER_HTTP_PATH").Required().String()
-	clientID       = kingpin.Flag("client-id", "The OAuth2 Client ID (Application ID) for Service Principal authentication.").Envar("DATABRICKS_EXPORTER_CLIENT_ID").Required().String()
-	clientSecret   = kingpin.Flag("client-secret", "The OAuth2 Client Secret for Service Principal authentication.").Envar("DATABRICKS_EXPORTER_CLIENT_SECRET").Required().String()
-	catalog        = kingpin.Flag("catalog", "The catalog to use when querying.").Default("system").Envar("DATABRICKS_EXPORTER_CATALOG").String()
-	schema         = kingpin.Flag("schema", "The schema to use when querying.").Default("billing").Envar("DATABRICKS_EXPORTER_SCHEMA").String()
+	webConfig         = webflag.AddFlags(kingpin.CommandLine, ":9976")
+	metricPath        = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").Envar("DATABRICKS_EXPORTER_WEB_TELEMETRY_PATH").String()
+	serverHostname    = kingpin.Flag("server-hostname", "The Databricks workspace hostname (e.g., dbc-abc123-def456.cloud.databricks.com).").Envar("DATABRICKS_EXPORTER_SERVER_HOSTNAME").Required().String()
+	warehouseHTTPPath = kingpin.Flag("warehouse-http-path", "The HTTP path of the SQL Warehouse (e.g., /sql/1.0/warehouses/abc123def456).").Envar("DATABRICKS_EXPORTER_WAREHOUSE_HTTP_PATH").Required().String()
+	clientID          = kingpin.Flag("client-id", "The OAuth2 Client ID (Application ID) for Service Principal authentication.").Envar("DATABRICKS_EXPORTER_CLIENT_ID").Required().String()
+	clientSecret      = kingpin.Flag("client-secret", "The OAuth2 Client Secret for Service Principal authentication.").Envar("DATABRICKS_EXPORTER_CLIENT_SECRET").Required().String()
+
+	// Query settings
+	queryTimeout = kingpin.Flag("query-timeout", "Timeout for database queries.").Default("5m").Envar("DATABRICKS_EXPORTER_QUERY_TIMEOUT").Duration()
+
+	// Lookback windows
+	billingLookback   = kingpin.Flag("billing-lookback", "How far back to look for billing data.").Default("24h").Envar("DATABRICKS_EXPORTER_BILLING_LOOKBACK").Duration()
+	jobsLookback      = kingpin.Flag("jobs-lookback", "How far back to look for job runs.").Default("3h").Envar("DATABRICKS_EXPORTER_JOBS_LOOKBACK").Duration()
+	pipelinesLookback = kingpin.Flag("pipelines-lookback", "How far back to look for pipeline runs.").Default("3h").Envar("DATABRICKS_EXPORTER_PIPELINES_LOOKBACK").Duration()
+	queriesLookback   = kingpin.Flag("queries-lookback", "How far back to look for SQL warehouse queries.").Default("2h").Envar("DATABRICKS_EXPORTER_QUERIES_LOOKBACK").Duration()
+
+	// SLA settings (default matches collector.DefaultSLAThresholdSeconds)
+	slaThreshold = kingpin.Flag("sla-threshold", "Duration threshold (in seconds) for job SLA miss detection.").Default("3600").Envar("DATABRICKS_EXPORTER_SLA_THRESHOLD").Int()
+
+	// Cardinality controls
+	collectTaskRetries = kingpin.Flag("collect-task-retries", "Collect task retry metrics (high cardinality due to task_key label).").Default("false").Envar("DATABRICKS_EXPORTER_COLLECT_TASK_RETRIES").Bool()
+
+	// Table availability settings
+	tableCheckInterval = kingpin.Flag("table-check-interval", "Number of scrapes between table availability checks (for optional tables like pipelines).").Default("10").Envar("DATABRICKS_EXPORTER_TABLE_CHECK_INTERVAL").Int()
 )
 
 const (
 	// The name of the exporter.
 	exporterName    = "databricks_exporter"
-	landingPageHtml = `<html>
+	landingPageHTML = `<html>
 <head><title>Databricks exporter</title></head>
 	<body>
 		<h1>Databricks exporter</h1>
@@ -59,30 +59,47 @@ const (
 func main() {
 	kingpin.Version(version.Print(exporterName))
 
-	promlogConfig := &promlog.Config{}
+	promslogConfig := &promslog.Config{}
 
-	flag.AddFlags(kingpin.CommandLine, promlogConfig)
+	flag.AddFlags(kingpin.CommandLine, promslogConfig)
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	logger := promlog.New(promlogConfig)
+	logger := promslog.New(promslogConfig)
 
 	// Construct the collector, using the flags for configuration
 	c := &collector.Config{
-		ServerHostname: *serverHostname,
-		HTTPPath:       *httpPath,
-		ClientID:       *clientID,
-		ClientSecret:   *clientSecret,
-		Catalog:        *catalog,
-		Schema:         *schema,
+		Version:           version.Version,
+		ServerHostname:    *serverHostname,
+		WarehouseHTTPPath: *warehouseHTTPPath,
+		ClientID:          *clientID,
+		ClientSecret:      *clientSecret,
+		QueryTimeout:      *queryTimeout,
+
+		// Lookback windows
+		BillingLookback:   *billingLookback,
+		JobsLookback:      *jobsLookback,
+		PipelinesLookback: *pipelinesLookback,
+		QueriesLookback:   *queriesLookback,
+
+		// SLA settings
+		SLAThresholdSeconds: *slaThreshold,
+
+		// Cardinality controls
+		CollectTaskRetries: *collectTaskRetries,
+
+		// Table availability settings
+		TableCheckInterval: *tableCheckInterval,
 	}
 
 	if err := c.Validate(); err != nil {
-		level.Error(logger).Log("msg", "Configuration is invalid.", "err", err)
+		logger.Error("Configuration is invalid.", "err", err)
 		os.Exit(1)
 	}
 
-	col := collector.NewCollector(logger, c)
+	// Add component prefix to logger for better log correlation
+	collectorLogger := logger.With("component", "databricks-exporter")
+	col := collector.NewCollector(collectorLogger, c)
 
 	// Register collector with prometheus client library
 	prometheus.MustRegister(col)
@@ -90,19 +107,20 @@ func main() {
 	serveMetrics(logger)
 }
 
-func serveMetrics(logger log.Logger) {
-	landingPage := []byte(fmt.Sprintf(landingPageHtml, *metricPath))
+func serveMetrics(logger *slog.Logger) {
+	landingPage := []byte(fmt.Sprintf(landingPageHTML, *metricPath))
 
 	http.Handle(*metricPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=UTF-8") // nolint: errcheck
-		w.Write(landingPage)                                       // nolint: errcheck
+		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		if _, err := w.Write(landingPage); err != nil {
+			logger.Error("Failed to write landing page", "err", err)
+		}
 	})
 
 	srv := &http.Server{}
-	slogger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	if err := web.ListenAndServe(srv, webConfig, slogger); err != nil {
-		level.Error(logger).Log("msg", "Error running HTTP server", "err", err)
+	if err := web.ListenAndServe(srv, webConfig, logger); err != nil {
+		logger.Error("Error running HTTP server", "err", err)
 		os.Exit(1)
 	}
 }
