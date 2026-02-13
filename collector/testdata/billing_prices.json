@@ -1,0 +1,43 @@
+[
+  {
+    "sku_name": "STANDARD_ALL_PURPOSE_COMPUTE",
+    "cloud": "AWS",
+    "currency_code": "USD",
+    "pricing": 0.55,
+    "price_start_time": "2025-01-01T00:00:00Z",
+    "price_end_time": null
+  },
+  {
+    "sku_name": "PREMIUM_JOBS_COMPUTE",
+    "cloud": "AWS",
+    "currency_code": "USD",
+    "pricing": 0.75,
+    "price_start_time": "2025-01-01T00:00:00Z",
+    "price_end_time": null
+  },
+  {
+    "sku_name": "SERVERLESS_SQL",
+    "cloud": "AWS",
+    "currency_code": "USD",
+    "pricing": 0.70,
+    "price_start_time": "2025-01-01T00:00:00Z",
+    "price_end_time": null
+  },
+  {
+    "sku_name": "STANDARD_ALL_PURPOSE_COMPUTE",
+    "cloud": "AWS",
+    "currency_code": "USD",
+    "pricing": 0.50,
+    "price_start_time": "2024-11-01T00:00:00Z",
+    "price_end_time": "2024-12-31T23:59:59Z"
+  },
+  {
+    "sku_name": "PREMIUM_JOBS_COMPUTE",
+    "cloud": "AWS",
+    "currency_code": "USD",
+    "pricing": 0.70,
+    "price_start_time": "2024-11-01T00:00:00Z",
+    "price_end_time": "2024-12-31T23:59:59Z"
+  }
+]
+

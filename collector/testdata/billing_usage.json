@@ -1,0 +1,57 @@
+[
+  {
+    "account_id": "12345678-1234-1234-1234-123456789012",
+    "workspace_id": "87654321",
+    "sku_name": "STANDARD_ALL_PURPOSE_COMPUTE",
+    "cloud": "AWS",
+    "usage_unit": "DBU",
+    "usage_quantity": 125.5,
+    "usage_date": "2025-01-10"
+  },
+  {
+    "account_id": "12345678-1234-1234-1234-123456789012",
+    "workspace_id": "87654321",
+    "sku_name": "PREMIUM_JOBS_COMPUTE",
+    "cloud": "AWS",
+    "usage_unit": "DBU",
+    "usage_quantity": 450.25,
+    "usage_date": "2025-01-10"
+  },
+  {
+    "account_id": "12345678-1234-1234-1234-123456789012",
+    "workspace_id": "87654322",
+    "sku_name": "STANDARD_ALL_PURPOSE_COMPUTE",
+    "cloud": "AWS",
+    "usage_unit": "DBU",
+    "usage_quantity": 89.75,
+    "usage_date": "2025-01-10"
+  },
+  {
+    "account_id": "12345678-1234-1234-1234-123456789012",
+    "workspace_id": "87654321",
+    "sku_name": "STANDARD_ALL_PURPOSE_COMPUTE",
+    "cloud": "AWS",
+    "usage_unit": "DBU",
+    "usage_quantity": 110.0,
+    "usage_date": "2025-01-09"
+  },
+  {
+    "account_id": "12345678-1234-1234-1234-123456789012",
+    "workspace_id": "87654321",
+    "sku_name": "PREMIUM_JOBS_COMPUTE",
+    "cloud": "AWS",
+    "usage_unit": "DBU",
+    "usage_quantity": 500.5,
+    "usage_date": "2025-01-09"
+  },
+  {
+    "account_id": "12345678-1234-1234-1234-123456789012",
+    "workspace_id": "87654321",
+    "sku_name": "SERVERLESS_SQL",
+    "cloud": "AWS",
+    "usage_unit": "DBU",
+    "usage_quantity": 75.25,
+    "usage_date": "2025-01-10"
+  }
+]
+

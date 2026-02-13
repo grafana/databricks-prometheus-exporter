@@ -1,0 +1,1669 @@
+{
+      "annotations": {
+         "list": [ ]
+      },
+      "description": "Deep dive into jobs and pipelines reliability, throughput, and performance metrics.",
+      "links": [
+         {
+            "includeVars": true,
+            "keepTime": true,
+            "title": "Overview",
+            "type": "link",
+            "url": "/d/databricks_overview/databricks-overview"
+         },
+         {
+            "includeVars": true,
+            "keepTime": true,
+            "title": "Warehouses & Queries",
+            "type": "link",
+            "url": "/d/databricks_warehouses_queries/databricks-warehouses-and-queries"
+         }
+      ],
+      "panels": [
+         {
+            "collapsed": false,
+            "gridPos": {
+               "h": 1,
+               "w": 0,
+               "x": 0,
+               "y": 0
+            },
+            "id": 1,
+            "panels": [ ],
+            "title": "Workloads overview",
+            "type": "row"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Job runs (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 4,
+               "x": 0,
+               "y": 1
+            },
+            "id": 2,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time(\n  sum by (job,workspace_id,instance) (databricks_job_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n[30m:])",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Jobs",
+                  "refId": "Jobs throughput"
+               }
+            ],
+            "title": "Job runs",
+            "type": "stat"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Pipeline runs (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 4,
+               "x": 4,
+               "y": 1
+            },
+            "id": 3,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time(\n  sum by (job,workspace_id,instance) (databricks_pipeline_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n[30m:])",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Pipelines",
+                  "refId": "Pipelines throughput"
+               }
+            ],
+            "title": "Pipeline runs",
+            "type": "stat"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Percentage of successful jobs (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "percentunit"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 4,
+               "x": 8,
+               "y": 1
+            },
+            "id": 4,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time((\n  sum(databricks_job_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=\"SUCCEEDED\"})\n  /\n  sum(databricks_job_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n)[30m:])\n",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Success rate",
+                  "refId": "Job success rate"
+               }
+            ],
+            "title": "Job success %",
+            "type": "stat"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Percentage of successful pipelines (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "percentunit"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 4,
+               "x": 12,
+               "y": 1
+            },
+            "id": 5,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time((\n  sum(databricks_pipeline_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=\"COMPLETED\"})\n  /\n  sum(databricks_pipeline_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n)[30m:])\n",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Success rate",
+                  "refId": "Pipeline success rate"
+               }
+            ],
+            "title": "Pipeline success %",
+            "type": "stat"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Maximum p95 job duration across all jobs.",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "s"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 4,
+               "x": 16,
+               "y": 1
+            },
+            "id": 6,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time(\n  max(databricks_job_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})\n[30m:])",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Jobs p95",
+                  "refId": "Job run p95 duration (aggregate)"
+               }
+            ],
+            "title": "Job p95 duration (max)",
+            "type": "stat"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Maximum p95 pipeline duration across all pipelines.",
+            "fieldConfig": {
+               "defaults": {
+                  "color": {
+                     "fixedColor": "text",
+                     "mode": "fixed"
+                  },
+                  "unit": "s"
+               }
+            },
+            "gridPos": {
+               "h": 4,
+               "w": 4,
+               "x": 20,
+               "y": 1
+            },
+            "id": 7,
+            "options": {
+               "graphMode": "none"
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time(\n  max(databricks_pipeline_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})\n[30m:])",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Pipelines p95",
+                  "refId": "Pipeline run p95 duration (aggregate)"
+               }
+            ],
+            "title": "Pipeline p95 duration (max)",
+            "type": "stat"
+         },
+         {
+            "collapsed": false,
+            "gridPos": {
+               "h": 1,
+               "w": 0,
+               "x": 0,
+               "y": 5
+            },
+            "id": 8,
+            "panels": [ ],
+            "title": "Throughput & duration",
+            "type": "row"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Number of job and pipeline runs (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 8,
+               "x": 0,
+               "y": 6
+            },
+            "id": 9,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time(\n  sum by (job,workspace_id,instance) (databricks_job_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n[30m:])",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Jobs",
+                  "refId": "Jobs throughput"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time(\n  sum by (job,workspace_id,instance) (databricks_pipeline_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n[30m:])",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Pipelines",
+                  "refId": "Pipelines throughput"
+               }
+            ],
+            "title": "Total runs",
+            "type": "timeseries"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Maximum p95 duration across all jobs over time.",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "s"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 8,
+               "x": 8,
+               "y": 6
+            },
+            "id": 10,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list",
+                  "placement": "bottom"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time(\n  max(databricks_job_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})\n[30m:])",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Jobs p95",
+                  "refId": "Job run p95 duration (aggregate)"
+               }
+            ],
+            "title": "Job p95 duration",
+            "type": "timeseries"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Maximum p95 duration across all pipelines over time.",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "s"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 8,
+               "x": 16,
+               "y": 6
+            },
+            "id": 11,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list",
+                  "placement": "bottom"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time(\n  max(databricks_pipeline_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"})\n[30m:])",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "Pipelines p95",
+                  "refId": "Pipeline run p95 duration (aggregate)"
+               }
+            ],
+            "title": "Pipeline p95 duration",
+            "type": "timeseries"
+         },
+         {
+            "collapsed": false,
+            "gridPos": {
+               "h": 1,
+               "w": 0,
+               "x": 0,
+               "y": 14
+            },
+            "id": 12,
+            "panels": [ ],
+            "title": "Reliability & stability",
+            "type": "row"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Job and pipeline failure rates by workspace (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "percentunit"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 12,
+               "x": 0,
+               "y": 15
+            },
+            "id": 13,
+            "options": {
+               "legend": {
+                  "calcs": [ ],
+                  "displayMode": "list"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time((\n  sum by (workspace_id) (databricks_job_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=~\"FAILED|ERROR\"})\n  /\n  sum by (workspace_id) (databricks_job_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n)[30m:])\n",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "{{workspace_id}} - Jobs",
+                  "refId": "Job failure rate"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time((\n  sum by (workspace_id) (databricks_pipeline_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=\"FAILED\"})\n  /\n  sum by (workspace_id) (databricks_pipeline_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n)[30m:])\n",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "{{workspace_id}} - Pipelines",
+                  "refId": "Pipeline failure rate"
+               }
+            ],
+            "title": "Failure rate by workspace",
+            "type": "timeseries"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Number of task and pipeline retries (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never"
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 8,
+               "w": 12,
+               "x": 12,
+               "y": 15
+            },
+            "id": 14,
+            "options": {
+               "legend": {
+                  "asTable": true,
+                  "calcs": [ ],
+                  "displayMode": "list",
+                  "placement": "right"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time(\n  databricks_task_retries_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "{{workspace_id}} - Task retries",
+                  "refId": "Task retries"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time(\n  databricks_pipeline_retry_events_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "{{workspace_id}} - Pipeline retries",
+                  "refId": "Pipeline retries"
+               }
+            ],
+            "title": "Retries",
+            "type": "timeseries"
+         },
+         {
+            "collapsed": false,
+            "gridPos": {
+               "h": 1,
+               "w": 0,
+               "x": 0,
+               "y": 23
+            },
+            "id": 15,
+            "panels": [ ],
+            "title": "Status breakdown",
+            "type": "row"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Job status breakdown showing counts (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never",
+                     "stacking": {
+                        "mode": "normal"
+                     }
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 10,
+               "w": 12,
+               "x": 0,
+               "y": 24
+            },
+            "id": 16,
+            "options": {
+               "legend": {
+                  "asTable": true,
+                  "calcs": [ ],
+                  "displayMode": "list",
+                  "placement": "right"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time(\n  databricks_job_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "{{job_name}} - {{status}}",
+                  "refId": "Job status breakdown"
+               }
+            ],
+            "title": "Jobs status breakdown",
+            "type": "timeseries"
+         },
+         {
+            "datasource": {
+               "type": "prometheus",
+               "uid": "${datasource}"
+            },
+            "description": "Pipeline status breakdown showing counts (adapts to dashboard time range).",
+            "fieldConfig": {
+               "defaults": {
+                  "custom": {
+                     "fillOpacity": 30,
+                     "gradientMode": "opacity",
+                     "lineInterpolation": "smooth",
+                     "lineWidth": 2,
+                     "showPoints": "never",
+                     "stacking": {
+                        "mode": "normal"
+                     }
+                  },
+                  "unit": "short"
+               }
+            },
+            "gridPos": {
+               "h": 10,
+               "w": 12,
+               "x": 12,
+               "y": 24
+            },
+            "id": 17,
+            "options": {
+               "legend": {
+                  "asTable": true,
+                  "calcs": [ ],
+                  "displayMode": "list",
+                  "placement": "right"
+               },
+               "tooltip": {
+                  "mode": "multi",
+                  "sort": "desc"
+               }
+            },
+            "pluginVersion": "v11.0.0",
+            "targets": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "expr": "last_over_time(\n  databricks_pipeline_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
+                  "format": "time_series",
+                  "instant": false,
+                  "legendFormat": "{{pipeline_name}} - {{status}}",
+                  "refId": "Pipeline status breakdown"
+               }
+            ],
+            "title": "Pipelines status breakdown",
+            "type": "timeseries"
+         },
+         {
+            "collapsed": true,
+            "gridPos": {
+               "h": 1,
+               "w": 0,
+               "x": 0,
+               "y": 34
+            },
+            "id": 18,
+            "panels": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "description": "Jobs with most runs (all time).",
+                  "fieldConfig": {
+                     "overrides": [
+                        {
+                           "matcher": {
+                              "id": "byName",
+                              "options": "Total Runs"
+                           },
+                           "properties": [
+                              {
+                                 "id": "unit",
+                                 "value": "short"
+                              }
+                           ]
+                        }
+                     ]
+                  },
+                  "gridPos": {
+                     "h": 8,
+                     "w": 8,
+                     "x": 0,
+                     "y": 35
+                  },
+                  "id": 19,
+                  "pluginVersion": "v11.0.0",
+                  "targets": [
+                     {
+                        "datasource": {
+                           "type": "prometheus",
+                           "uid": "${datasource}"
+                        },
+                        "expr": "last_over_time(\n  sum by (workspace_id, job_id, job_name) (databricks_job_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n[30m:])",
+                        "format": "table",
+                        "instant": true,
+                        "legendFormat": "{{job_name}}",
+                        "refId": "Top jobs by runs (table)"
+                     }
+                  ],
+                  "title": "Top jobs by runs",
+                  "transformations": [
+                     {
+                        "id": "organize",
+                        "options": {
+                           "excludeByName": {
+                              "Time": true,
+                              "__name__": true,
+                              "instance": true,
+                              "job": true
+                           },
+                           "indexByName": {
+                              "Value": 3,
+                              "job_id": 1,
+                              "job_name": 2,
+                              "workspace_id": 0
+                           },
+                           "renameByName": {
+                              "Value": "Total Runs",
+                              "job_id": "Job ID",
+                              "job_name": "Job Name",
+                              "workspace_id": "Workspace ID"
+                           }
+                        }
+                     },
+                     {
+                        "id": "sortBy",
+                        "options": {
+                           "sort": [
+                              {
+                                 "desc": true,
+                                 "field": "Total Runs"
+                              }
+                           ]
+                        }
+                     },
+                     {
+                        "id": "limit",
+                        "options": {
+                           "limitField": 10
+                        }
+                     }
+                  ],
+                  "type": "table"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "description": "Jobs with longest p95 duration.",
+                  "fieldConfig": {
+                     "overrides": [
+                        {
+                           "matcher": {
+                              "id": "byName",
+                              "options": "p95 Duration (seconds)"
+                           },
+                           "properties": [
+                              {
+                                 "id": "unit",
+                                 "value": "s"
+                              }
+                           ]
+                        }
+                     ]
+                  },
+                  "gridPos": {
+                     "h": 8,
+                     "w": 8,
+                     "x": 8,
+                     "y": 35
+                  },
+                  "id": 20,
+                  "pluginVersion": "v11.0.0",
+                  "targets": [
+                     {
+                        "datasource": {
+                           "type": "prometheus",
+                           "uid": "${datasource}"
+                        },
+                        "expr": "last_over_time(\n  databricks_job_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}\n[30m:])",
+                        "format": "table",
+                        "instant": true,
+                        "legendFormat": "{{job_name}} (p95)",
+                        "refId": "Job duration by job name"
+                     }
+                  ],
+                  "title": "Top jobs by p95 duration",
+                  "transformations": [
+                     {
+                        "id": "organize",
+                        "options": {
+                           "excludeByName": {
+                              "Time": true,
+                              "__name__": true,
+                              "instance": true,
+                              "job": true,
+                              "quantile": true
+                           },
+                           "indexByName": {
+                              "Value": 3,
+                              "job_id": 1,
+                              "job_name": 2,
+                              "workspace_id": 0
+                           },
+                           "renameByName": {
+                              "Value": "p95 Duration (seconds)",
+                              "job_id": "Job ID",
+                              "job_name": "Job Name",
+                              "workspace_id": "Workspace ID"
+                           }
+                        }
+                     },
+                     {
+                        "id": "sortBy",
+                        "options": {
+                           "sort": [
+                              {
+                                 "desc": true,
+                                 "field": "p95 Duration (seconds)"
+                              }
+                           ]
+                        }
+                     },
+                     {
+                        "id": "limit",
+                        "options": {
+                           "limitField": 10
+                        }
+                     }
+                  ],
+                  "type": "table"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "description": "Jobs with most failures (adapts to dashboard time range).",
+                  "fieldConfig": {
+                     "overrides": [
+                        {
+                           "matcher": {
+                              "id": "byName",
+                              "options": "Total Failures"
+                           },
+                           "properties": [
+                              {
+                                 "id": "unit",
+                                 "value": "short"
+                              }
+                           ]
+                        }
+                     ]
+                  },
+                  "gridPos": {
+                     "h": 8,
+                     "w": 8,
+                     "x": 16,
+                     "y": 35
+                  },
+                  "id": 21,
+                  "pluginVersion": "v11.0.0",
+                  "targets": [
+                     {
+                        "datasource": {
+                           "type": "prometheus",
+                           "uid": "${datasource}"
+                        },
+                        "expr": "last_over_time(\n  databricks_job_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=~\"ERROR|FAILED|CANCELLED\"}\n[30m:])",
+                        "format": "table",
+                        "instant": true,
+                        "legendFormat": "{{job_name}}",
+                        "refId": "Job failures by job name"
+                     }
+                  ],
+                  "title": "Top jobs by failures",
+                  "transformations": [
+                     {
+                        "id": "organize",
+                        "options": {
+                           "excludeByName": {
+                              "Time": true,
+                              "__name__": true,
+                              "instance": true,
+                              "job": true
+                           },
+                           "indexByName": {
+                              "Value": 4,
+                              "job_id": 1,
+                              "job_name": 2,
+                              "status": 3,
+                              "workspace_id": 0
+                           },
+                           "renameByName": {
+                              "Value": "Total Failures",
+                              "job_id": "Job ID",
+                              "job_name": "Job Name",
+                              "status": "Status",
+                              "workspace_id": "Workspace ID"
+                           }
+                        }
+                     },
+                     {
+                        "id": "sortBy",
+                        "options": {
+                           "sort": [
+                              {
+                                 "desc": true,
+                                 "field": "Total Failures"
+                              }
+                           ]
+                        }
+                     },
+                     {
+                        "id": "limit",
+                        "options": {
+                           "limitField": 10
+                        }
+                     }
+                  ],
+                  "type": "table"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "description": "Job run counts over time by job name (adapts to dashboard time range).",
+                  "fieldConfig": {
+                     "defaults": {
+                        "custom": {
+                           "fillOpacity": 30,
+                           "gradientMode": "opacity",
+                           "lineInterpolation": "smooth",
+                           "lineWidth": 2,
+                           "showPoints": "never"
+                        },
+                        "unit": "short"
+                     }
+                  },
+                  "gridPos": {
+                     "h": 10,
+                     "w": 12,
+                     "x": 0,
+                     "y": 45
+                  },
+                  "id": 22,
+                  "options": {
+                     "legend": {
+                        "calcs": [ ],
+                        "displayMode": "table",
+                        "placement": "right"
+                     },
+                     "tooltip": {
+                        "mode": "multi",
+                        "sort": "desc"
+                     }
+                  },
+                  "pluginVersion": "v11.0.0",
+                  "targets": [
+                     {
+                        "datasource": {
+                           "type": "prometheus",
+                           "uid": "${datasource}"
+                        },
+                        "expr": "last_over_time(\n  databricks_job_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
+                        "format": "time_series",
+                        "instant": false,
+                        "legendFormat": "{{job_name}}",
+                        "refId": "Job runs by name (chart)"
+                     }
+                  ],
+                  "title": "Job runs by name",
+                  "type": "timeseries"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "description": "Job p95 duration over time by job name.",
+                  "fieldConfig": {
+                     "defaults": {
+                        "custom": {
+                           "fillOpacity": 30,
+                           "gradientMode": "opacity",
+                           "lineInterpolation": "smooth",
+                           "lineWidth": 2,
+                           "showPoints": "never"
+                        },
+                        "unit": "s"
+                     }
+                  },
+                  "gridPos": {
+                     "h": 10,
+                     "w": 12,
+                     "x": 12,
+                     "y": 45
+                  },
+                  "id": 23,
+                  "options": {
+                     "legend": {
+                        "calcs": [ ],
+                        "displayMode": "table",
+                        "placement": "right"
+                     },
+                     "tooltip": {
+                        "mode": "multi",
+                        "sort": "desc"
+                     }
+                  },
+                  "pluginVersion": "v11.0.0",
+                  "targets": [
+                     {
+                        "datasource": {
+                           "type": "prometheus",
+                           "uid": "${datasource}"
+                        },
+                        "expr": "last_over_time(\n  databricks_job_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}\n[30m:])",
+                        "format": "time_series",
+                        "instant": false,
+                        "legendFormat": "{{job_name}} (p95)",
+                        "refId": "Job duration by job name"
+                     }
+                  ],
+                  "title": "Job p95 duration by name",
+                  "type": "timeseries"
+               }
+            ],
+            "title": "Jobs drill-down (by job name)",
+            "type": "row"
+         },
+         {
+            "collapsed": true,
+            "gridPos": {
+               "h": 1,
+               "w": 0,
+               "x": 0,
+               "y": 55
+            },
+            "id": 24,
+            "panels": [
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "description": "Pipeline run counts over time by pipeline name (adapts to dashboard time range).",
+                  "fieldConfig": {
+                     "defaults": {
+                        "custom": {
+                           "fillOpacity": 30,
+                           "gradientMode": "opacity",
+                           "lineInterpolation": "smooth",
+                           "lineWidth": 2,
+                           "showPoints": "never"
+                        },
+                        "unit": "short"
+                     }
+                  },
+                  "gridPos": {
+                     "h": 10,
+                     "w": 24,
+                     "x": 0,
+                     "y": 56
+                  },
+                  "id": 25,
+                  "options": {
+                     "legend": {
+                        "calcs": [ ],
+                        "displayMode": "table",
+                        "placement": "right"
+                     },
+                     "tooltip": {
+                        "mode": "multi",
+                        "sort": "desc"
+                     }
+                  },
+                  "pluginVersion": "v11.0.0",
+                  "targets": [
+                     {
+                        "datasource": {
+                           "type": "prometheus",
+                           "uid": "${datasource}"
+                        },
+                        "expr": "last_over_time(\n  databricks_pipeline_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
+                        "format": "time_series",
+                        "instant": false,
+                        "legendFormat": "{{pipeline_name}}",
+                        "refId": "Pipeline runs by name (chart)"
+                     }
+                  ],
+                  "title": "Pipeline runs by name",
+                  "type": "timeseries"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "description": "Pipelines with most runs (all time).",
+                  "fieldConfig": {
+                     "overrides": [
+                        {
+                           "matcher": {
+                              "id": "byName",
+                              "options": "Total Runs"
+                           },
+                           "properties": [
+                              {
+                                 "id": "unit",
+                                 "value": "short"
+                              }
+                           ]
+                        }
+                     ]
+                  },
+                  "gridPos": {
+                     "h": 8,
+                     "w": 8,
+                     "x": 0,
+                     "y": 64
+                  },
+                  "id": 26,
+                  "pluginVersion": "v11.0.0",
+                  "targets": [
+                     {
+                        "datasource": {
+                           "type": "prometheus",
+                           "uid": "${datasource}"
+                        },
+                        "expr": "last_over_time(\n  sum by (workspace_id, pipeline_id, pipeline_name) (databricks_pipeline_runs_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"})\n[30m:])",
+                        "format": "table",
+                        "instant": true,
+                        "legendFormat": "{{pipeline_name}}",
+                        "refId": "Top pipelines by runs (table)"
+                     }
+                  ],
+                  "title": "Top pipelines by runs",
+                  "transformations": [
+                     {
+                        "id": "organize",
+                        "options": {
+                           "excludeByName": {
+                              "Time": true,
+                              "__name__": true,
+                              "instance": true,
+                              "job": true
+                           },
+                           "indexByName": {
+                              "Value": 3,
+                              "pipeline_id": 1,
+                              "pipeline_name": 2,
+                              "workspace_id": 0
+                           },
+                           "renameByName": {
+                              "Value": "Total Runs",
+                              "pipeline_id": "Pipeline ID",
+                              "pipeline_name": "Pipeline Name",
+                              "workspace_id": "Workspace ID"
+                           }
+                        }
+                     },
+                     {
+                        "id": "sortBy",
+                        "options": {
+                           "sort": [
+                              {
+                                 "desc": true,
+                                 "field": "Total Runs"
+                              }
+                           ]
+                        }
+                     },
+                     {
+                        "id": "limit",
+                        "options": {
+                           "limitField": 10
+                        }
+                     }
+                  ],
+                  "type": "table"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "description": "Pipelines with longest p95 duration.",
+                  "fieldConfig": {
+                     "overrides": [
+                        {
+                           "matcher": {
+                              "id": "byName",
+                              "options": "p95 Duration (seconds)"
+                           },
+                           "properties": [
+                              {
+                                 "id": "unit",
+                                 "value": "s"
+                              }
+                           ]
+                        }
+                     ]
+                  },
+                  "gridPos": {
+                     "h": 8,
+                     "w": 8,
+                     "x": 8,
+                     "y": 64
+                  },
+                  "id": 27,
+                  "pluginVersion": "v11.0.0",
+                  "targets": [
+                     {
+                        "datasource": {
+                           "type": "prometheus",
+                           "uid": "${datasource}"
+                        },
+                        "expr": "last_over_time(\n  databricks_pipeline_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}\n[30m:])",
+                        "format": "table",
+                        "instant": true,
+                        "legendFormat": "{{pipeline_name}} (p95)",
+                        "refId": "Pipeline duration by pipeline name"
+                     }
+                  ],
+                  "title": "Top pipelines by p95 duration",
+                  "transformations": [
+                     {
+                        "id": "organize",
+                        "options": {
+                           "excludeByName": {
+                              "Time": true,
+                              "__name__": true,
+                              "instance": true,
+                              "job": true,
+                              "quantile": true
+                           },
+                           "indexByName": {
+                              "Value": 3,
+                              "pipeline_id": 1,
+                              "pipeline_name": 2,
+                              "workspace_id": 0
+                           },
+                           "renameByName": {
+                              "Value": "p95 Duration (seconds)",
+                              "pipeline_id": "Pipeline ID",
+                              "pipeline_name": "Pipeline Name",
+                              "workspace_id": "Workspace ID"
+                           }
+                        }
+                     },
+                     {
+                        "id": "sortBy",
+                        "options": {
+                           "sort": [
+                              {
+                                 "desc": true,
+                                 "field": "p95 Duration (seconds)"
+                              }
+                           ]
+                        }
+                     },
+                     {
+                        "id": "limit",
+                        "options": {
+                           "limitField": 10
+                        }
+                     }
+                  ],
+                  "type": "table"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "description": "Pipelines with most failures (adapts to dashboard time range).",
+                  "fieldConfig": {
+                     "overrides": [
+                        {
+                           "matcher": {
+                              "id": "byName",
+                              "options": "Total Failures"
+                           },
+                           "properties": [
+                              {
+                                 "id": "unit",
+                                 "value": "short"
+                              }
+                           ]
+                        }
+                     ]
+                  },
+                  "gridPos": {
+                     "h": 8,
+                     "w": 8,
+                     "x": 16,
+                     "y": 64
+                  },
+                  "id": 28,
+                  "pluginVersion": "v11.0.0",
+                  "targets": [
+                     {
+                        "datasource": {
+                           "type": "prometheus",
+                           "uid": "${datasource}"
+                        },
+                        "expr": "last_over_time(\n  databricks_pipeline_run_status_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", status=\"FAILED\"}\n[30m:])",
+                        "format": "table",
+                        "instant": true,
+                        "legendFormat": "{{pipeline_name}}",
+                        "refId": "Pipeline failures by pipeline name"
+                     }
+                  ],
+                  "title": "Top pipelines by failures",
+                  "transformations": [
+                     {
+                        "id": "organize",
+                        "options": {
+                           "excludeByName": {
+                              "Time": true,
+                              "__name__": true,
+                              "instance": true,
+                              "job": true
+                           },
+                           "indexByName": {
+                              "Value": 4,
+                              "pipeline_id": 1,
+                              "pipeline_name": 2,
+                              "status": 3,
+                              "workspace_id": 0
+                           },
+                           "renameByName": {
+                              "Value": "Total Failures",
+                              "pipeline_id": "Pipeline ID",
+                              "pipeline_name": "Pipeline Name",
+                              "status": "Status",
+                              "workspace_id": "Workspace ID"
+                           }
+                        }
+                     },
+                     {
+                        "id": "sortBy",
+                        "options": {
+                           "sort": [
+                              {
+                                 "desc": true,
+                                 "field": "Total Failures"
+                              }
+                           ]
+                        }
+                     },
+                     {
+                        "id": "limit",
+                        "options": {
+                           "limitField": 10
+                        }
+                     }
+                  ],
+                  "type": "table"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "description": "Data freshness lag by pipeline.",
+                  "fieldConfig": {
+                     "overrides": [
+                        {
+                           "matcher": {
+                              "id": "byName",
+                              "options": "Freshness Lag (seconds)"
+                           },
+                           "properties": [
+                              {
+                                 "id": "unit",
+                                 "value": "s"
+                              }
+                           ]
+                        }
+                     ]
+                  },
+                  "gridPos": {
+                     "h": 10,
+                     "w": 10,
+                     "x": 0,
+                     "y": 74
+                  },
+                  "id": 29,
+                  "pluginVersion": "v11.0.0",
+                  "targets": [
+                     {
+                        "datasource": {
+                           "type": "prometheus",
+                           "uid": "${datasource}"
+                        },
+                        "expr": "last_over_time(\n  databricks_pipeline_freshness_lag_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\"}\n[30m:])",
+                        "format": "table",
+                        "instant": true,
+                        "legendFormat": "{{pipeline_name}}",
+                        "refId": "Pipeline freshness lag by pipeline name"
+                     }
+                  ],
+                  "title": "Pipeline freshness lag",
+                  "transformations": [
+                     {
+                        "id": "organize",
+                        "options": {
+                           "excludeByName": {
+                              "Time": true,
+                              "__name__": true,
+                              "instance": true,
+                              "job": true
+                           },
+                           "indexByName": {
+                              "Value": 3,
+                              "pipeline_id": 1,
+                              "pipeline_name": 2,
+                              "workspace_id": 0
+                           },
+                           "renameByName": {
+                              "Value": "Freshness Lag (seconds)",
+                              "pipeline_id": "Pipeline ID",
+                              "pipeline_name": "Pipeline Name",
+                              "workspace_id": "Workspace ID"
+                           }
+                        }
+                     },
+                     {
+                        "id": "sortBy",
+                        "options": {
+                           "sort": [
+                              {
+                                 "desc": true,
+                                 "field": "Freshness Lag (seconds)"
+                              }
+                           ]
+                        }
+                     },
+                     {
+                        "id": "limit",
+                        "options": {
+                           "limitField": 10
+                        }
+                     }
+                  ],
+                  "type": "table"
+               },
+               {
+                  "datasource": {
+                     "type": "prometheus",
+                     "uid": "${datasource}"
+                  },
+                  "description": "Pipeline p95 duration over time by pipeline name.",
+                  "fieldConfig": {
+                     "defaults": {
+                        "custom": {
+                           "fillOpacity": 30,
+                           "gradientMode": "opacity",
+                           "lineInterpolation": "smooth",
+                           "lineWidth": 2,
+                           "showPoints": "never"
+                        },
+                        "unit": "s"
+                     }
+                  },
+                  "gridPos": {
+                     "h": 10,
+                     "w": 14,
+                     "x": 10,
+                     "y": 74
+                  },
+                  "id": 30,
+                  "options": {
+                     "legend": {
+                        "calcs": [ ],
+                        "displayMode": "table",
+                        "placement": "right"
+                     },
+                     "tooltip": {
+                        "mode": "multi",
+                        "sort": "desc"
+                     }
+                  },
+                  "pluginVersion": "v11.0.0",
+                  "targets": [
+                     {
+                        "datasource": {
+                           "type": "prometheus",
+                           "uid": "${datasource}"
+                        },
+                        "expr": "last_over_time(\n  databricks_pipeline_run_duration_seconds_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\",instance=~\"$instance\", quantile=\"0.95\"}\n[30m:])",
+                        "format": "time_series",
+                        "instant": false,
+                        "legendFormat": "{{pipeline_name}} (p95)",
+                        "refId": "Pipeline duration by pipeline name"
+                     }
+                  ],
+                  "title": "Pipeline p95 duration by name",
+                  "type": "timeseries"
+               }
+            ],
+            "title": "Pipelines drill-down (by pipeline name)",
+            "type": "row"
+         }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "tags": [
+         "databricks-mixin"
+      ],
+      "templating": {
+         "list": [
+            {
+               "label": "Data source",
+               "name": "datasource",
+               "query": "prometheus",
+               "regex": "",
+               "type": "datasource"
+            },
+            {
+               "allValue": ".+",
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": "${datasource}"
+               },
+               "includeAll": true,
+               "label": "Job",
+               "multi": true,
+               "name": "job",
+               "query": "label_values(databricks_billing_dbus_sliding{}, job)",
+               "refresh": 2,
+               "sort": 1,
+               "type": "query"
+            },
+            {
+               "allValue": ".*",
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": "${datasource}"
+               },
+               "includeAll": true,
+               "label": "Workspace",
+               "multi": true,
+               "name": "workspace_id",
+               "query": "label_values(databricks_billing_dbus_sliding{job=~\"$job\"}, workspace_id)",
+               "refresh": 2,
+               "sort": 1,
+               "type": "query"
+            },
+            {
+               "allValue": ".+",
+               "datasource": {
+                  "type": "prometheus",
+                  "uid": "${datasource}"
+               },
+               "includeAll": true,
+               "label": "Instance",
+               "multi": true,
+               "name": "instance",
+               "query": "label_values(databricks_billing_dbus_sliding{job=~\"$job\",workspace_id=~\"$workspace_id\"}, instance)",
+               "refresh": 2,
+               "sort": 1,
+               "type": "query"
+            }
+         ]
+      },
+      "time": {
+         "from": "now-1h",
+         "to": "now"
+      },
+      "timezone": "default",
+      "title": "Databricks Jobs & Pipelines",
+      "uid": "databricks_jobs_pipelines"
+   }
