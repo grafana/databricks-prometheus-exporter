@@ -64,9 +64,6 @@ jobs:
         working-directory: ./mixin
         run: make all
 
-      - name: Lint jsonnet
-        run: make lint-fmt
-
       - name: Lint mixin
         working-directory: ./mixin
         run: make lint

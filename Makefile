@@ -67,6 +67,10 @@ clean:
 	rm -rf $(BIN_DIR)
 	rm -f coverage.out coverage.html
 
+###
+### Jsonnet
+###
+
 # Check if .github/workflows/*.yml need to be updated
 # when changing the install-ci-deps target.
 .PHONY: install-ci-deps
