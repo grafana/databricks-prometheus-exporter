@@ -162,7 +162,12 @@ go build -o databricks-exporter ./cmd/databricks-exporter
 
 ## Running with Docker
 
-Build the Docker image:
+First, build the exporter:
+```sh
+make build
+```
+
+Then, build the Docker image:
 
 ```sh
 docker build -t databricks-exporter .
