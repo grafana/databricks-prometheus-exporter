@@ -94,7 +94,7 @@ func (c *JobsCollector) collectJobRuns(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("failed to execute job runs query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, jobID, jobName sql.NullString
@@ -130,7 +130,7 @@ func (c *JobsCollector) collectJobRunStatus(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("failed to execute job run status query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, jobID, jobName, status sql.NullString
@@ -167,7 +167,7 @@ func (c *JobsCollector) collectJobRunDuration(ch chan<- prometheus.Metric) error
 	if err != nil {
 		return fmt.Errorf("failed to execute job run duration query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, jobID, jobName sql.NullString
@@ -231,7 +231,7 @@ func (c *JobsCollector) collectTaskRetries(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("failed to execute task retries query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, jobID, jobName, taskKey sql.NullString
@@ -272,7 +272,7 @@ func (c *JobsCollector) collectJobSLAMiss(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("failed to execute job SLA miss query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, jobID, jobName sql.NullString

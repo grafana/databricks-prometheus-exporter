@@ -17,7 +17,7 @@ func TestNewSQLWarehouseCollector(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	metrics := NewMetricDescriptors()
 	collector := NewSQLWarehouseCollector(context.Background(), db, metrics, DefaultConfig(), logger)
@@ -45,7 +45,7 @@ func TestSQLWarehouseCollector_Describe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	metrics := NewMetricDescriptors()
 	collector := NewSQLWarehouseCollector(context.Background(), db, metrics, DefaultConfig(), logger)
@@ -73,7 +73,7 @@ func TestSQLWarehouseCollector_CollectQueries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock query result
 	rows := sqlmock.NewRows([]string{"workspace_id", "warehouse_id", "query_count"}).
@@ -121,7 +121,7 @@ func TestSQLWarehouseCollector_CollectQueryErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock all queries to prevent errors
 	mock.ExpectQuery("SELECT(.+)FROM system.query.history").
@@ -177,7 +177,7 @@ func TestSQLWarehouseCollector_CollectQueryDuration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock all queries
 	mock.ExpectQuery("SELECT(.+)FROM system.query.history").
@@ -232,7 +232,7 @@ func TestSQLWarehouseCollector_CollectWithError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Simulate a query error
 	mock.ExpectQuery("SELECT(.+)FROM system.query.history").
@@ -273,7 +273,7 @@ func TestSQLWarehouseCollector_CollectQueriesRunning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock all queries
 	mock.ExpectQuery("SELECT(.+)FROM system.query.history").

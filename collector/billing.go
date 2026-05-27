@@ -103,7 +103,7 @@ func (c *BillingCollector) collectBillingDBUs(ch chan<- prometheus.Metric) error
 	if err != nil {
 		return fmt.Errorf("failed to query billing DBUs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	count := 0
 	for rows.Next() {
@@ -148,7 +148,7 @@ func (c *BillingCollector) collectBillingCost(ch chan<- prometheus.Metric) error
 	if err != nil {
 		return fmt.Errorf("failed to query billing cost: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	count := 0
 	for rows.Next() {
@@ -193,7 +193,7 @@ func (c *BillingCollector) collectPriceChangeEvents(ch chan<- prometheus.Metric)
 	if err != nil {
 		return fmt.Errorf("failed to query price changes: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	count := 0
 	for rows.Next() {

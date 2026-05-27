@@ -155,7 +155,7 @@ func (c *PipelinesCollector) checkTableAvailability() {
 	query := "SELECT 1 FROM system.lakeflow.pipeline_update_timeline LIMIT 1"
 	rows, err := c.db.QueryContext(c.ctx, query)
 	if rows != nil {
-		rows.Close()
+		_ = rows.Close()
 	}
 
 	c.mu.Lock()
@@ -252,7 +252,7 @@ func (c *PipelinesCollector) collectPipelineRuns(ch chan<- prometheus.Metric) er
 	if err != nil {
 		return fmt.Errorf("failed to execute pipeline runs query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, pipelineID, pipelineName sql.NullString
@@ -288,7 +288,7 @@ func (c *PipelinesCollector) collectPipelineRunStatus(ch chan<- prometheus.Metri
 	if err != nil {
 		return fmt.Errorf("failed to execute pipeline run status query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, pipelineID, pipelineName, status sql.NullString
@@ -325,7 +325,7 @@ func (c *PipelinesCollector) collectPipelineRunDuration(ch chan<- prometheus.Met
 	if err != nil {
 		return fmt.Errorf("failed to execute pipeline run duration query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, pipelineID, pipelineName sql.NullString
@@ -384,7 +384,7 @@ func (c *PipelinesCollector) collectPipelineRetryEvents(ch chan<- prometheus.Met
 	if err != nil {
 		return fmt.Errorf("failed to execute pipeline retry events query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, pipelineID, pipelineName sql.NullString
@@ -420,7 +420,7 @@ func (c *PipelinesCollector) collectPipelineFreshnessLag(ch chan<- prometheus.Me
 	if err != nil {
 		return fmt.Errorf("failed to execute pipeline freshness lag query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, pipelineID, pipelineName sql.NullString
