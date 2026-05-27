@@ -16,7 +16,7 @@ vet:
 	$(GO) vet $(GOFLAGS) $(pkgs)
 
 .PHONY: lint
-lint:
+lint: fmt vet
 	@echo ">> running golangci-lint"
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run $(pkgs); \
