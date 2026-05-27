@@ -20,7 +20,6 @@ formatters:
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
@@ -31,6 +30,36 @@ linters:
     gosec:
       severity: medium
       confidence: medium
+    depguard:
+      rules:
+        main:
+          list-mode: strict
+          files:
+            - $all
+            - "!$test"
+          allow:
+            - $gostd
+            - github.com/grafana/databricks-prometheus-exporter
+            - github.com/alecthomas/kingpin/v2
+            - github.com/databricks/databricks-sql-go
+            - github.com/prometheus/client_golang
+            - github.com/prometheus/common
+            - github.com/prometheus/exporter-toolkit
+        tests:
+          list-mode: strict
+          files:
+            - $test
+          allow:
+            - $gostd
+            - github.com/grafana/databricks-prometheus-exporter
+            - github.com/alecthomas/kingpin/v2
+            - github.com/databricks/databricks-sql-go
+            - github.com/prometheus/client_golang
+            - github.com/prometheus/client_model
+            - github.com/prometheus/common
+            - github.com/prometheus/exporter-toolkit
+            - github.com/DATA-DOG/go-sqlmock
+            - github.com/stretchr/testify
 
 issues:
   max-issues-per-linter: 0
