@@ -1,8 +1,21 @@
 # golangci-lint configuration
 # https://golangci-lint.run/usage/configuration/
 
+version: "2"
+
 run:
   timeout: 5m
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/grafana/databricks-prometheus-exporter
+    gofumpt:
+      extra-rules: true
 
 linters:
   enable:
@@ -12,22 +25,16 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    - gofmt
-    - goimports
-
-linters-settings:
-  errcheck:
-    # Ignore log.Log() return values - standard Go logging pattern
-    exclude-functions:
-      - (github.com/go-kit/log.Logger).Log
-      - (*github.com/go-kit/log.Logger).Log
-      - (github.com/go-kit/log/level.Logger).Log
+    - gosec
+    - depguard
+  settings:
+    gosec:
+      severity: medium
+      confidence: medium
 
 issues:
-  # Don't limit the number of issues
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-dirs:
     - mixin
     - vendor
-
