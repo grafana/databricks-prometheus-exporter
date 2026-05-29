@@ -174,14 +174,13 @@ func TestOpenDatabricksDatabase_ValidatesConnection(t *testing.T) {
 
 	// This will attempt to create a connector but should return without error
 	// The actual connection/authentication will fail when the DB is used
-	db, err := openDatabricksDatabase(config)
-
 	// We expect no error during connector creation (errors happen on use)
+	db, err := openDatabricksDatabase(config)
 	if err != nil {
 		t.Errorf("unexpected error creating connector: %v", err)
 	}
 
 	if db != nil {
-		db.Close()
+		_ = db.Close()
 	}
 }

@@ -90,7 +90,7 @@ func (c *SQLWarehouseCollector) collectQueries(ch chan<- prometheus.Metric) erro
 	if err != nil {
 		return fmt.Errorf("failed to execute queries query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, warehouseID sql.NullString
@@ -125,7 +125,7 @@ func (c *SQLWarehouseCollector) collectQueryErrors(ch chan<- prometheus.Metric) 
 	if err != nil {
 		return fmt.Errorf("failed to execute query errors query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, warehouseID sql.NullString
@@ -160,7 +160,7 @@ func (c *SQLWarehouseCollector) collectQueryDuration(ch chan<- prometheus.Metric
 	if err != nil {
 		return fmt.Errorf("failed to execute query duration query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, warehouseID sql.NullString
@@ -221,7 +221,7 @@ func (c *SQLWarehouseCollector) collectQueriesRunning(ch chan<- prometheus.Metri
 	if err != nil {
 		return fmt.Errorf("failed to execute running queries query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var workspaceID, warehouseID sql.NullString

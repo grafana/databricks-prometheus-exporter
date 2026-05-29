@@ -121,7 +121,7 @@ func (c *Collector) getDB() (*sql.DB, error) {
 			return c.db, nil
 		}
 		// Close unhealthy connection
-		c.db.Close()
+		_ = c.db.Close()
 		c.db = nil
 	}
 

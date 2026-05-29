@@ -17,7 +17,7 @@ func TestNewJobsCollector(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	metrics := NewMetricDescriptors()
 	collector := NewJobsCollector(context.Background(), db, metrics, DefaultConfig(), logger)
@@ -45,7 +45,7 @@ func TestJobsCollector_Describe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	metrics := NewMetricDescriptors()
 	collector := NewJobsCollector(context.Background(), db, metrics, DefaultConfig(), logger)
@@ -73,7 +73,7 @@ func TestJobsCollector_CollectJobRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock query result
 	rows := sqlmock.NewRows([]string{"workspace_id", "job_id", "job_name", "run_count"}).
@@ -121,7 +121,7 @@ func TestJobsCollector_CollectJobRunStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock all queries to prevent errors
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").
@@ -180,7 +180,7 @@ func TestJobsCollector_CollectJobRunDuration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock all queries
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").
@@ -236,7 +236,7 @@ func TestJobsCollector_CollectWithError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Simulate a query error
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").
@@ -278,7 +278,7 @@ func TestJobsCollector_CollectTaskRetries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock all queries
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").
@@ -324,7 +324,7 @@ func TestJobsCollector_CollectJobSLAMiss(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock all queries
 	mock.ExpectQuery("SELECT(.+)FROM system.lakeflow.job_run_timeline").

@@ -17,7 +17,7 @@ func TestNewPipelinesCollector(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	metrics := NewMetricDescriptors()
 	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
@@ -45,7 +45,7 @@ func TestPipelinesCollector_Describe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	metrics := NewMetricDescriptors()
 	collector := NewPipelinesCollector(context.Background(), db, metrics, DefaultConfig(), logger)
@@ -73,7 +73,7 @@ func TestPipelinesCollector_CollectPipelineRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock table availability check (must come first)
 	availRows := sqlmock.NewRows([]string{"1"}).AddRow(1)
@@ -125,7 +125,7 @@ func TestPipelinesCollector_CollectPipelineRunStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock table availability check (must come first)
 	availRows := sqlmock.NewRows([]string{"1"}).AddRow(1)
@@ -188,7 +188,7 @@ func TestPipelinesCollector_CollectPipelineRunDuration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock table availability check (must come first)
 	availRows := sqlmock.NewRows([]string{"1"}).AddRow(1)
@@ -249,7 +249,7 @@ func TestPipelinesCollector_CollectWithError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock table availability check (table exists)
 	availRows := sqlmock.NewRows([]string{"1"}).AddRow(1)
@@ -296,7 +296,7 @@ func TestPipelinesCollector_CollectRetryEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock table availability check (must come first)
 	availRows := sqlmock.NewRows([]string{"1"}).AddRow(1)
@@ -343,7 +343,7 @@ func TestPipelinesCollector_CollectFreshnessLag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Mock table availability check (must come first)
 	availRows := sqlmock.NewRows([]string{"1"}).AddRow(1)

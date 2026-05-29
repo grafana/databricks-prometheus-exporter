@@ -16,7 +16,7 @@ import (
 func TestBillingCollector_Initialization(t *testing.T) {
 	db, _, err := sqlmock.New()
 	require.NoError(t, err, "failed to create mock db")
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	metrics := NewMetricDescriptors()
 	logger := promslog.NewNopLogger()
@@ -31,7 +31,7 @@ func TestBillingCollector_Initialization(t *testing.T) {
 func TestBillingCollector_CollectBillingDBUs(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err, "failed to create mock db")
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Set up mock expectations
 	rows := sqlmock.NewRows([]string{"workspace_id", "sku_name", "dbus_total"}).
@@ -89,7 +89,7 @@ func TestBillingCollector_CollectBillingCost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Set up mock expectations
 	rows := sqlmock.NewRows([]string{"workspace_id", "sku_name", "cost_estimate_usd"}).
@@ -147,7 +147,7 @@ func TestBillingCollector_CollectPriceChangeEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Set up mock expectations
 	rows := sqlmock.NewRows([]string{"sku_name", "price_change_count"}).
@@ -209,7 +209,7 @@ func TestBillingCollector_CollectPriceChangeEvents(t *testing.T) {
 func TestBillingCollector_CollectWithError(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err, "failed to create mock db")
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Simulate query error
 	mock.ExpectQuery("SELECT (.+) FROM system.billing.usage").
@@ -240,7 +240,7 @@ func TestBillingCollector_CollectEmitsErrorMetric(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	metrics := NewMetricDescriptors()
 	logger := promslog.NewNopLogger()
@@ -294,7 +294,7 @@ func TestBillingCollector_CollectContinuesOnPartialFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mock db: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// First query fails
 	mock.ExpectQuery("SELECT (.+) FROM system.billing.usage").

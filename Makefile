@@ -8,7 +8,7 @@ pkgs        := ./...
 all: check build
 
 .PHONY: check
-check: vet lint fmt test-exporter-unit
+check: vet lint fmt security-check test-exporter-unit
 
 .PHONY: vet
 vet:
@@ -16,7 +16,7 @@ vet:
 	$(GO) vet $(GOFLAGS) $(pkgs)
 
 .PHONY: lint
-lint:
+lint: fmt vet
 	@echo ">> running golangci-lint"
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run $(pkgs); \
@@ -66,6 +66,26 @@ build:
 clean:
 	rm -rf $(BIN_DIR)
 	rm -f coverage.out coverage.html
+
+FIRST_GOPATH  := $(firstword $(subst :, ,$(shell go env GOPATH)))
+GOVULNCHECK    = $(FIRST_GOPATH)/bin/govulncheck
+
+.PHONY: vuln-check
+vuln-check:
+	@echo ">> Running govulncheck..."
+	@command -v $(GOVULNCHECK) >/dev/null 2>&1 || { echo "govulncheck not installed. Install: go install golang.org/x/vuln/cmd/govulncheck@0782b76014f15f24e22a438f30f308df42899ba1 # v1.3.0"; exit 1; }
+	$(GOVULNCHECK) ./...
+	@echo ">> govulncheck passed!"
+
+.PHONY: gosec-check
+gosec-check:
+	@echo ">> Running gosec via golangci-lint..."
+	@command -v golangci-lint >/dev/null 2>&1 || { echo "golangci-lint not installed. Install: https://golangci-lint.run/docs/welcome/install/"; exit 1; }
+	golangci-lint run --enable-only gosec $(pkgs)
+	@echo ">> Security checks passed!"
+
+.PHONY: security-check
+security-check: vuln-check gosec-check
 
 ###
 ### Jsonnet

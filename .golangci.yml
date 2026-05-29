@@ -1,33 +1,62 @@
 # golangci-lint configuration
 # https://golangci-lint.run/usage/configuration/
 
+version: "2"
+
 run:
   timeout: 5m
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/grafana/databricks-prometheus-exporter
+    gofumpt:
+      extra-rules: true
 
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
-    - gofmt
-    - goimports
-
-linters-settings:
-  errcheck:
-    # Ignore log.Log() return values - standard Go logging pattern
-    exclude-functions:
-      - (github.com/go-kit/log.Logger).Log
-      - (*github.com/go-kit/log.Logger).Log
-      - (github.com/go-kit/log/level.Logger).Log
-
-issues:
-  # Don't limit the number of issues
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  exclude-dirs:
-    - mixin
-    - vendor
-
+    - gosec
+    - depguard
+  settings:
+    gosec:
+      severity: medium
+      confidence: medium
+    depguard:
+      rules:
+        main:
+          list-mode: strict
+          files:
+            - $all
+            - "!$test"
+          allow:
+            - $gostd
+            - github.com/grafana/databricks-prometheus-exporter
+            - github.com/alecthomas/kingpin/v2
+            - github.com/databricks/databricks-sql-go
+            - github.com/prometheus/client_golang
+            - github.com/prometheus/common
+            - github.com/prometheus/exporter-toolkit
+        tests:
+          list-mode: strict
+          files:
+            - $test
+          allow:
+            - $gostd
+            - github.com/grafana/databricks-prometheus-exporter
+            - github.com/alecthomas/kingpin/v2
+            - github.com/databricks/databricks-sql-go
+            - github.com/prometheus/client_golang
+            - github.com/prometheus/client_model
+            - github.com/prometheus/common
+            - github.com/prometheus/exporter-toolkit
+            - github.com/DATA-DOG/go-sqlmock
+            - github.com/stretchr/testify
