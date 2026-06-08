@@ -21,7 +21,7 @@ lint: fmt vet
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run $(pkgs); \
 	else \
-		echo "golangci-lint not installed, skipping (install: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)"; \
+		echo "golangci-lint not installed, skipping (install: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2)"; \
 	fi
 
 .PHONY: fmt
@@ -98,6 +98,6 @@ install-ci-deps:
 	go install github.com/google/go-jsonnet/cmd/jsonnet@v0.20.0
 	go install github.com/google/go-jsonnet/cmd/jsonnetfmt@v0.20.0
 	go install github.com/google/go-jsonnet/cmd/jsonnet-lint@v0.20.0
-	go install github.com/monitoring-mixins/mixtool/cmd/mixtool@main
+	go install github.com/monitoring-mixins/mixtool/cmd/mixtool@ea35232b9d85b4cd7943b481c6f90fd94f1ec0ca # main @ 2026-05-04 (no tagged releases)
 	go install github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1
-	go install github.com/grafana/grizzly/cmd/grr@latest
+	go install github.com/grafana/grizzly/cmd/grr@v0.7.1 # v0.7.1
