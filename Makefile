@@ -21,7 +21,7 @@ lint: fmt vet
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run $(pkgs); \
 	else \
-		echo "golangci-lint not installed, skipping (install: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2)"; \
+		echo "golangci-lint not installed, skipping (install: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@c0d3ddc9cf3faa61a4e378e879ece580256d76e5 # v2.12.2)"; \
 	fi
 
 .PHONY: fmt
@@ -73,7 +73,7 @@ GOVULNCHECK    = $(FIRST_GOPATH)/bin/govulncheck
 .PHONY: vuln-check
 vuln-check:
 	@echo ">> Running govulncheck..."
-	@command -v $(GOVULNCHECK) >/dev/null 2>&1 || { echo "govulncheck not installed. Install: go install golang.org/x/vuln/cmd/govulncheck@0782b76014f15f24e22a438f30f308df42899ba1 # v1.3.0"; exit 1; }
+	@command -v $(GOVULNCHECK) >/dev/null 2>&1 || { echo "govulncheck not installed. Install: go install golang.org/x/vuln/cmd/govulncheck@617f44b718537dccdea1915395650e0529e3b72e # v1.7.0"; exit 1; }
 	$(GOVULNCHECK) ./...
 	@echo ">> govulncheck passed!"
 
