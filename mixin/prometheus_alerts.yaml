@@ -1,0 +1,197 @@
+groups:
+    - name: DatabricksAlerts
+      rules:
+        - alert: DatabricksWarnSpendSpike
+          annotations:
+            description: Spending on workspace {{$labels.workspace_id}} increased by {{ printf "%.0f" $value }}%, which is above the warning threshold of 25%. Check cost drivers.
+            summary: Databricks spend increased significantly day-over-day.
+          expr: |
+            (
+              sum by (job, workspace_id) (databricks_billing_cost_estimate_usd_sliding{} offset 1d)
+              - sum by (job, workspace_id) (databricks_billing_cost_estimate_usd_sliding{} offset 2d)
+            )
+            / sum by (job, workspace_id) (databricks_billing_cost_estimate_usd_sliding{} offset 2d)
+            > (25 / 100)
+          for: 5m
+          labels:
+            severity: warning
+        - alert: DatabricksCriticalSpendSpike
+          annotations:
+            description: Spending on workspace {{$labels.workspace_id}} spiked by {{ printf "%.0f" $value }}%, which is above the critical threshold of 50%. Immediate investigation required.
+            summary: Databricks spend spiked critically day-over-day.
+          expr: |
+            (
+              sum by (job, workspace_id) (databricks_billing_cost_estimate_usd_sliding{} offset 1d)
+              - sum by (job, workspace_id) (databricks_billing_cost_estimate_usd_sliding{} offset 2d)
+            )
+            / sum by (job, workspace_id) (databricks_billing_cost_estimate_usd_sliding{} offset 2d)
+            > (50 / 100)
+          for: 5m
+          labels:
+            severity: critical
+        - alert: DatabricksWarnNoBillingData
+          annotations:
+            description: No billing data has been received for workspace {{$labels.workspace_id}} in the last 2h. Check SQL Warehouse status and system tables availability.
+            summary: No billing data received from Databricks.
+          expr: |
+            (max_over_time(databricks_billing_dbus_sliding{}[6h]) > 0)
+            and
+            (increase(databricks_billing_dbus_sliding{}[2h]) == 0)
+          for: 5m
+          labels:
+            severity: warning
+        - alert: DatabricksCriticalNoBillingData
+          annotations:
+            description: No billing data has been received for workspace {{$labels.workspace_id}} in the last 4h. Immediate investigation required - check SQL Warehouse and exporter status.
+            summary: 'Critical: No billing data received from Databricks.'
+          expr: |
+            (max_over_time(databricks_billing_dbus_sliding{}[6h]) > 0)
+            and
+            (increase(databricks_billing_dbus_sliding{}[4h]) == 0)
+          for: 5m
+          labels:
+            severity: critical
+        - alert: DatabricksWarnJobFailureRate
+          annotations:
+            description: Job failure rate on workspace {{$labels.workspace_id}} is {{ printf "%.1f" $value }}%, which exceeds the warning threshold of 10%.
+            summary: High job failure rate detected.
+          expr: |
+            (
+              sum by (job, workspace_id) (increase(databricks_job_run_status_sliding{status="FAILED"}[1h]))
+              / sum by (job, workspace_id) (increase(databricks_job_run_status_sliding{}[1h]))
+            ) > (10 / 100)
+          for: 5m
+          labels:
+            severity: warning
+        - alert: DatabricksCriticalJobFailureRate
+          annotations:
+            description: Job failure rate on workspace {{$labels.workspace_id}} is {{ printf "%.1f" $value }}%, which exceeds the critical threshold of 20%. Investigate immediately.
+            summary: Critical job failure rate detected.
+          expr: |
+            (
+              sum by (job, workspace_id) (increase(databricks_job_run_status_sliding{status="FAILED"}[2h]))
+              / sum by (job, workspace_id) (increase(databricks_job_run_status_sliding{}[2h]))
+            ) > (20 / 100)
+          for: 5m
+          labels:
+            severity: critical
+        - alert: DatabricksWarnJobDurationRegression
+          annotations:
+            description: Job p95 duration on workspace {{$labels.workspace_id}} increased by {{ printf "%.0f" $value }}% compared to 7-day median, exceeding warning threshold of 30%.
+            summary: Job duration p95 regression detected.
+          expr: |
+            (
+              databricks_job_run_duration_seconds_sliding{quantile="0.95"}
+              / quantile_over_time(0.5, databricks_job_run_duration_seconds_sliding{quantile="0.95"}[7d])
+            ) - 1 > (30 / 100)
+          for: 5m
+          labels:
+            severity: warning
+        - alert: DatabricksCriticalJobDurationRegression
+          annotations:
+            description: Job p95 duration on workspace {{$labels.workspace_id}} increased by {{ printf "%.0f" $value }}% compared to 7-day median, exceeding critical threshold of 60%.
+            summary: Critical job duration p95 regression detected.
+          expr: |
+            (
+              databricks_job_run_duration_seconds_sliding{quantile="0.95"}
+              / quantile_over_time(0.5, databricks_job_run_duration_seconds_sliding{quantile="0.95"}[7d])
+            ) - 1 > (60 / 100)
+          for: 5m
+          labels:
+            severity: critical
+        - alert: DatabricksWarnPipelineFailureRate
+          annotations:
+            description: Pipeline failure rate on workspace {{$labels.workspace_id}} is {{ printf "%.1f" $value }}%, which exceeds the warning threshold of 10%.
+            summary: High pipeline failure rate detected.
+          expr: |
+            (
+              sum by (job, workspace_id) (increase(databricks_pipeline_run_status_sliding{status="FAILED"}[1h]))
+              / sum by (job, workspace_id) (increase(databricks_pipeline_run_status_sliding{}[1h]))
+            ) > (10 / 100)
+          for: 5m
+          labels:
+            severity: warning
+        - alert: DatabricksCriticalPipelineFailureRate
+          annotations:
+            description: Pipeline failure rate on workspace {{$labels.workspace_id}} is {{ printf "%.1f" $value }}%, which exceeds the critical threshold of 20%. Investigate immediately.
+            summary: Critical pipeline failure rate detected.
+          expr: |
+            (
+              sum by (job, workspace_id) (increase(databricks_pipeline_run_status_sliding{status="FAILED"}[1h]))
+              / sum by (job, workspace_id) (increase(databricks_pipeline_run_status_sliding{}[1h]))
+            ) > (20 / 100)
+          for: 5m
+          labels:
+            severity: critical
+        - alert: DatabricksWarnPipelineDurationRegression
+          annotations:
+            description: Pipeline p95 duration on workspace {{$labels.workspace_id}} increased by {{ printf "%.0f" $value }}% compared to 7-day median, exceeding warning threshold of 30%.
+            summary: Pipeline duration p95 regression detected.
+          expr: |
+            (
+              databricks_pipeline_run_duration_seconds_sliding{quantile="0.95"}
+              / quantile_over_time(0.5, databricks_pipeline_run_duration_seconds_sliding{quantile="0.95"}[7d])
+            ) - 1 > (30 / 100)
+          for: 5m
+          labels:
+            severity: warning
+        - alert: DatabricksCritPipelineDurationHigh
+          annotations:
+            description: Pipeline p95 duration on workspace {{$labels.workspace_id}} increased by {{ printf "%.0f" $value }}% compared to 7-day median, exceeding critical threshold of 60%.
+            summary: Critical pipeline duration p95 regression detected.
+          expr: |
+            (
+              databricks_pipeline_run_duration_seconds_sliding{quantile="0.95"}
+              / quantile_over_time(0.5, databricks_pipeline_run_duration_seconds_sliding{quantile="0.95"}[7d])
+            ) - 1 > (60 / 100)
+          for: 5m
+          labels:
+            severity: critical
+        - alert: DatabricksWarnSqlQueryErrorRate
+          annotations:
+            description: SQL query error rate on workspace {{$labels.workspace_id}} is {{ printf "%.1f" $value }}%, which exceeds the warning threshold of 5%.
+            summary: High SQL query error rate detected.
+          expr: |
+            (
+              sum by (job, workspace_id) (rate(databricks_query_errors_sliding{}[30m]))
+              / sum by (job, workspace_id) (rate(databricks_queries_sliding{}[30m]))
+            ) > (5 / 100)
+          for: 1h
+          labels:
+            severity: warning
+        - alert: DatabricksCriticalSqlQueryErrorRate
+          annotations:
+            description: SQL query error rate on workspace {{$labels.workspace_id}} is {{ printf "%.1f" $value }}%, which exceeds the critical threshold of 10%. Investigate immediately.
+            summary: Critical SQL query error rate detected.
+          expr: |
+            (
+              sum by (job, workspace_id) (rate(databricks_query_errors_sliding{}[30m]))
+              / sum by (job, workspace_id) (rate(databricks_queries_sliding{}[30m]))
+            ) > (10 / 100)
+          for: 1h
+          labels:
+            severity: critical
+        - alert: DatabricksWarnSqlQueryLatencyRegression
+          annotations:
+            description: SQL query p95 latency on workspace {{$labels.workspace_id}} increased by {{ printf "%.0f" $value }}% compared to 7-day median, exceeding warning threshold of 30%.
+            summary: SQL query latency p95 regression detected.
+          expr: |
+            (
+              databricks_query_duration_seconds_sliding{quantile="0.95"}
+              / quantile_over_time(0.5, databricks_query_duration_seconds_sliding{quantile="0.95"}[7d])
+            ) - 1 > (30 / 100)
+          for: 5m
+          labels:
+            severity: warning
+        - alert: DatabricksCritQueryLatencyHigh
+          annotations:
+            description: SQL query p95 latency on workspace {{$labels.workspace_id}} increased by {{ printf "%.0f" $value }}% compared to 7-day median, exceeding critical threshold of 60%.
+            summary: Critical SQL query latency p95 regression detected.
+          expr: |
+            (
+              databricks_query_duration_seconds_sliding{quantile="0.95"}
+              / quantile_over_time(0.5, databricks_query_duration_seconds_sliding{quantile="0.95"}[7d])
+            ) - 1 > (60 / 100)
+          for: 5m
+          labels:
+            severity: critical
