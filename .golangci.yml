@@ -15,7 +15,9 @@ formatters:
       local-prefixes:
         - github.com/grafana/databricks-prometheus-exporter
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true
 
 linters:
   enable:

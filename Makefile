@@ -21,7 +21,7 @@ lint: fmt vet
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run $(pkgs); \
 	else \
-		echo "golangci-lint not installed, skipping (install: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@c0d3ddc9cf3faa61a4e378e879ece580256d76e5 # v2.12.2)"; \
+		echo "golangci-lint not installed, skipping (install: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@25c5369a93aacb8cccea0d46e1569ca4a194564d # v2.15.0)"; \
 	fi
 
 .PHONY: fmt
